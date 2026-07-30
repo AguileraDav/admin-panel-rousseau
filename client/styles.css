@@ -1,0 +1,395 @@
+:root {
+  --bg: #F5F7FB;
+  --sidebar-bg: #0F172A;
+  --sidebar-text: #94A3B8;
+  --sidebar-active-bg: #47A39B;
+  --sidebar-active-text: #FFFFFF;
+  --text-main: #1E293B;
+  --text-muted: #64748B;
+  --accent: #1E1C55;
+  --topbar-bg: #FFFFFF;
+  --radius: 12px;
+  
+  --c-chat: #F59E0B;
+  --c-eventos: #EC4899;
+  --c-calendario: #A855F7;
+  --c-pagos: #84CC16;
+  --c-perfil: #3B82F6;
+  
+  --c-card-prof: #78D6C6;
+  --c-card-insc: #FBBF24;
+  --c-card-rep: #F472B6;
+  --c-card-conf: #A78BFA;
+  
+  font-family: 'Poppins', sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--text-main); display: flex; }
+
+/* SIDEBAR */
+.sidebar {
+  width: 260px;
+  background: var(--sidebar-bg);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  height: 100vh;
+  left: 0;
+  top: 0;
+  z-index: 100;
+}
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 30px 24px;
+}
+.brand-icon {
+  background: white;
+  color: var(--sidebar-bg);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.brand-text h2 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.2; }
+.brand-text p { margin: 0; font-size: 11px; color: var(--sidebar-text); }
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px;
+  flex: 1;
+}
+.nav-item {
+  background: none;
+  border: none;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--sidebar-text);
+  border-radius: 8px;
+  cursor: pointer;
+  width: 100%;
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.nav-icon {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.05); /* matching the slight tone */
+}
+.nav-item span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.nav-item.active {
+  background: var(--sidebar-active-bg);
+  color: var(--sidebar-active-text);
+}
+.nav-item.active .nav-icon {
+  background: transparent;
+}
+.nav-item:not(.active):hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.n-calificaciones { color: var(--c-card-prof); }
+.n-inscripciones { color: var(--c-card-insc); }
+.n-alimentos { color: var(--c-card-rep); }
+.n-solicitudes { color: var(--c-card-conf); }
+.c-chat { color: var(--c-chat); }
+.c-eventos { color: var(--c-eventos); }
+.c-calendario { color: var(--c-calendario); }
+.c-pagos { color: var(--c-pagos); }
+.c-perfil { color: var(--text-muted); }
+
+.sidebar-footer {
+  padding: 24px;
+  position: relative;
+  font-size: 11px;
+  color: var(--sidebar-text);
+}
+.sidebar-footer p { margin: 2px 0; }
+.collapse-btn {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* MAIN CONTENT */
+.main-content {
+  flex: 1;
+  margin-left: 260px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* TOPBAR */
+.topbar {
+  background: var(--topbar-bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 40px;
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  border-bottom: 2px solid #F1F5F9;
+}
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+/* menu-toggle removed */
+.topbar h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.notification-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+}
+.notification-btn .badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  background: red;
+  border-radius: 50%;
+}
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.avatar {
+  background: var(--accent);
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+.user-profile span {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.content-wrapper {
+  padding: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* NOTICE */
+.notice {
+  background: #F8EDFE;
+  border-radius: var(--radius);
+  padding: 24px 30px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 40px;
+}
+.notice-icon {
+  background: #A855F7;
+  color: white;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.notice-info h3 { margin: 0 0 8px 0; color: var(--accent); font-size: 18px; font-weight: 600; }
+.notice-info p { margin: 4px 0; color: var(--text-main); font-size: 14px; }
+
+/* QUICK ACCESS */
+.quick-access h2 { margin: 0 0 20px 0; color: var(--accent); font-size: 18px; }
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-bottom: 40px;
+}
+.card {
+  background: white;
+  border: none;
+  border-radius: var(--radius);
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 16px;
+  color: white;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.2s;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+.card:hover { transform: translateY(-5px); }
+.card span { font-weight: 500; font-size: 16px; line-height: 1.3; }
+
+.c-profesores { background: var(--c-card-prof); }
+.c-calificaciones { background: var(--c-card-prof); }
+.c-inscripciones-card { background: var(--c-card-insc); }
+.c-alimentos { background: var(--c-card-rep); }
+.c-solicitudes { background: var(--c-card-conf); }
+
+/* SUMMARY */
+.summary h2 { margin: 0 0 20px 0; color: var(--accent); font-size: 18px; }
+.summary-stats {
+  background: white;
+  border-radius: var(--radius);
+  padding: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+}
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+.stat-icon { color: var(--accent); }
+.stat-info { flex: 1; }
+.stat-info p { margin: 0 0 4px 0; font-size: 12px; color: var(--text-muted); font-weight: 500; }
+.stat-info h3 { margin: 0 0 8px 0; font-size: 24px; color: var(--accent); font-weight: 600; }
+.progress-bar {
+  background: #F1F5F9;
+  height: 6px;
+  border-radius: 3px;
+  width: 100%;
+  max-width: 120px;
+}
+.progress { height: 100%; border-radius: 3px; }
+.stat-divider {
+  width: 1px;
+  height: 60px;
+  background: #E2E8F0;
+  margin: 0 24px;
+}
+
+@media (max-width: 1024px) {
+  .cards-grid { grid-template-columns: repeat(2, 1fr); }
+  .summary-stats { flex-wrap: wrap; gap: 24px; }
+  .stat-divider { display: none; }
+  .stat-item { min-width: 40%; }
+}
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+  .main-content { margin-left: 0; }
+  .quick-access .cards-grid { grid-template-columns: 1fr; }
+  .stat-item { min-width: 100%; }
+}
+
+/* Calendario - formulario de evento */
+.calendar-section { margin-top: 20px; }
+.event-form { max-width: 720px; display: flex; flex-direction: column; gap: 12px; }
+.event-form .form-row { display: flex; flex-direction: column; gap: 6px; }
+.event-form label { font-size: 14px; color: var(--text-muted); font-weight: 600; }
+.event-form input[type="date"], .event-form input[type="text"], .event-form textarea, .event-form select { padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 14px; font-family: inherit; }
+.form-actions { display: flex; gap: 12px; margin-top: 8px; }
+.btn-primary { background: var(--sidebar-active-bg); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
+.btn-secondary { background: #F1F5F9; color: var(--text-main); border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
+.form-feedback { margin-top: 8px; font-size: 14px; }
+.form-feedback.success { color: #16A34A; }
+.form-feedback.error { color: #DC2626; }
+
+/* Calificaciones - tabla de materias con estrella de color */
+.grades-table { width: 100%; max-width: 720px; border-collapse: collapse; margin-bottom: 20px; }
+.grades-table th { text-align: left; font-size: 12px; color: var(--text-muted); font-weight: 600; padding: 10px 12px; border-bottom: 2px solid #F1F5F9; }
+.grades-table td { padding: 10px 12px; border-bottom: 1px solid #F1F5F9; font-size: 14px; color: var(--text-main); }
+.grade-star-cell { display: flex; align-items: center; gap: 14px; }
+.grade-bimestre-label { width: 22px; text-align: center; font-size: 12px; color: var(--text-muted); font-weight: 600; }
+.star-btn { background: none; border: none; cursor: pointer; font-size: 22px; line-height: 1; padding: 0; color: #E2E8F0; transition: color 0.15s; width: 22px; text-align: center; }
+.star-btn.star-destacado { color: #22C55E; }
+.star-btn.star-proceso { color: #EAB308; }
+.star-btn.star-dificulta { color: #EF4444; }
+.grade-status-label { font-size: 12px; color: var(--text-muted); }
+.grades-legend { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 24px; font-size: 13px; color: var(--text-muted); }
+.grades-legend span { display: flex; align-items: center; gap: 6px; }
+.grades-legend .star-btn { font-size: 16px; cursor: default; }
+
+/* Calendario académico - vista mensual con periodos */
+.cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; max-width: 720px; }
+.cal-header h3 { margin: 0; font-size: 16px; color: var(--accent); text-transform: capitalize; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; max-width: 720px; }
+.cal-grid-labels { margin-bottom: 6px; }
+.cal-weekday { text-align: center; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.cal-day { min-height: 64px; border-radius: 8px; background: #F8FAFC; border: 1px solid #F1F5F9; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+.cal-day-empty { background: transparent; border: none; }
+.cal-day-num { font-size: 12px; font-weight: 600; color: var(--text-main); }
+.cal-day-today { border: 2px solid var(--sidebar-active-bg); }
+.cal-day-bars { display: flex; flex-direction: column; gap: 2px; }
+.cal-day-bar { display: block; height: 6px; border-radius: 3px; }
+
+.cal-legend { list-style: none; margin: 20px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-width: 720px; }
+.cal-legend-empty { color: var(--text-muted); font-size: 14px; }
+.cal-legend-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #F8FAFC; border-radius: 8px; font-size: 13px; }
+.cal-legend-color { width: 14px; height: 14px; min-width: 14px; border-radius: 4px; }
+.cal-legend-title { font-weight: 600; color: var(--text-main); flex: 1; }
+.cal-legend-dates { color: var(--text-muted); }
+.cal-legend-delete { background: none; border: none; color: #DC2626; cursor: pointer; font-size: 14px; padding: 0 4px; }
+.cal-form-title { margin: 0 0 12px; font-size: 16px; color: var(--accent); }
+
+/* Alimentos - progreso del menú semanal */
+.food-days-list { list-style: none; margin: 0 0 20px; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; max-width: 720px; }
+.food-day-item { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 8px; background: #F1F5F9; color: var(--text-muted); font-size: 13px; }
+.food-day-item .food-day-status { font-weight: 700; color: #94A3B8; }
+.food-day-item.saved { background: #ECFDF5; color: #16A34A; }
+.food-day-item.saved .food-day-status { color: #16A34A; }
+.food-day-label { font-weight: 600; }
+.food-day-edit { margin-left: 4px; background: none; border: 1px solid #16A34A; color: #16A34A; border-radius: 6px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
+.food-day-edit:hover { background: #16A34A; color: white; }
+.food-send-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid #E2E8F0; max-width: 720px; }
+.food-send-hint { margin: 8px 0 0; font-size: 13px; color: var(--text-muted); }
