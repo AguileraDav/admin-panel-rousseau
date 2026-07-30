@@ -361,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Nota: endpoint temporal '/api/events' — en el siguiente paso se conectará a la base de datos
             // Usar URL absoluta hacia el backend Express (puerto 3000)
             // Esto evita que el fetch apunte al servidor de desarrollo del Live Server (ej: :5500)
-            const BACKEND_URL = 'http://localhost:3000';
+            const BACKEND_URL = 'https://admin-panel-rousseau.onrender.com';
             const res = await fetch(`${BACKEND_URL}/api/events`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -492,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
           renderSection('calendario');
 
           try {
-            const BACKEND_URL = 'http://localhost:3000';
+            const BACKEND_URL = 'https://admin-panel-rousseau.onrender.com';
             const res = await fetch(`${BACKEND_URL}/api/calendar`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -539,7 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           try {
             // Nota: endpoint temporal '/api/food' — en el siguiente paso se conectará a la base de datos
-            const BACKEND_URL = 'http://localhost:3000';
+            const BACKEND_URL = 'https://admin-panel-rousseau.onrender.com';
             const res = await fetch(`${BACKEND_URL}/api/food`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -582,7 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
           sendMenuBtn.disabled = true;
 
           try {
-            const BACKEND_URL = 'http://localhost:3000';
+            const BACKEND_URL = 'https://admin-panel-rousseau.onrender.com';
             const res = await fetch(`${BACKEND_URL}/api/menu`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

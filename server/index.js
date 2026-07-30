@@ -12,8 +12,13 @@ app.use(express.json());
 // Inicializar Firebase Admin
 let initialized = false;
 try {
-  // Preferencia: si existe la variable de entorno que apunta al JSON, usarla
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  // Preferencia: si existe la variable de entorno con el JSON completo, usarla
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    initialized = true;
+    console.log('Inicializado firebase-admin usando FIREBASE_SERVICE_ACCOUNT');
+  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     // firebase-admin utilizará automáticamente la variable de entorno si no pasamos credenciales
     admin.initializeApp();
     initialized = true;
