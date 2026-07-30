@@ -1,51 +1,15 @@
 const express = require('express');
 const cors = require('cors');
-const admin = require('firebase-admin');
-const path = require('path');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { admin, db } = require('./firebase');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
 app.use(cors());
 app.use(express.json());
-
-// Inicializar Firebase Admin
-let initialized = false;
-try {
-  // Preferencia: si existe la variable de entorno con el JSON completo, usarla
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-    initialized = true;
-    console.log('Inicializado firebase-admin usando FIREBASE_SERVICE_ACCOUNT');
-  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    // firebase-admin utilizará automáticamente la variable de entorno si no pasamos credenciales
-    admin.initializeApp();
-    initialized = true;
-    console.log('Inicializado firebase-admin usando GOOGLE_APPLICATION_CREDENTIALS');
-  } else {
-    // Intentar cargar un archivo local `serviceAccountKey.json`
-    const saPath = path.join(__dirname, 'serviceAccountKey.json');
-    try {
-      const serviceAccount = require(saPath);
-      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-      initialized = true;
-      console.log('Inicializado firebase-admin usando server/serviceAccountKey.json');
-    } catch (err) {
-      console.warn('No se encontró serviceAccountKey.json y GOOGLE_APPLICATION_CREDENTIALS no está definida. firebase-admin será inicializado con ADC si está disponible.');
-      try {
-        admin.initializeApp();
-        initialized = true;
-      } catch (e) {
-        console.error('No se pudo inicializar firebase-admin:', e.message);
-      }
-    }
-  }
-} catch (err) {
-  console.error('Error inicializando firebase-admin:', err);
-}
-
-const db = initialized ? admin.firestore() : null;
 
 // Nombre de la colección donde se guardan los eventos del calendario
 const EVENTS_COLLECTION = 'events';
@@ -56,8 +20,38 @@ const MENU_COLLECTION = 'menu_semanal';
 // Nombre de la colección donde se guardan los periodos del calendario académico
 const CALENDAR_COLLECTION = 'calendar';
 
+// Nombre de la colección donde se guardan las cuentas con acceso al panel
+const ADMINS_COLLECTION = 'admins';
+
 app.get('/', (req, res) => {
   res.json({ ok: true, message: 'Backend de eventos funcionando' });
+});
+
+// Endpoint de login: valida correo y contraseña contra la colección "admins"
+app.post('/api/login', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Base de datos no inicializada' });
+
+  const { email, password } = req.body || {};
+  if (!email || !password) return res.status(400).json({ error: 'Falta correo o contraseña' });
+
+  try {
+    const snapshot = await db.collection(ADMINS_COLLECTION)
+      .where('email', '==', email.toLowerCase().trim())
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) return res.status(401).json({ error: 'Credenciales inválidas' });
+
+    const account = snapshot.docs[0].data();
+    const match = await bcrypt.compare(password, account.passwordHash);
+    if (!match) return res.status(401).json({ error: 'Credenciales inválidas' });
+
+    const token = jwt.sign({ email: account.email, role: account.role }, JWT_SECRET, { expiresIn: '8h' });
+    res.json({ token, email: account.email, role: account.role });
+  } catch (err) {
+    console.error('Error en login:', err);
+    res.status(500).json({ error: 'Error al iniciar sesión' });
+  }
 });
 
 // Endpoint para crear evento

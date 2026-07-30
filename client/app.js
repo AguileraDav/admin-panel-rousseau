@@ -1,4 +1,83 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const AUTH_BACKEND_URL = 'https://admin-panel-rousseau.onrender.com';
+  const loginScreen = document.getElementById('loginScreen');
+  const dashboardRoot = document.getElementById('dashboardRoot');
+  const loginForm = document.getElementById('loginForm');
+  const loginFeedback = document.getElementById('loginFeedback');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const userRoleLabel = document.getElementById('userRoleLabel');
+  const userAvatar = document.getElementById('userAvatar');
+
+  const ROLE_LABELS = { admin: 'Administrador', profesor: 'Profesor' };
+
+  function getSession() {
+    const token = localStorage.getItem('authToken');
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (!payload.exp || payload.exp * 1000 < Date.now()) return null;
+      return { token, email: payload.email, role: payload.role };
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function showDashboard(session) {
+    loginScreen.classList.add('hidden');
+    dashboardRoot.classList.remove('hidden');
+    const label = ROLE_LABELS[session.role] || session.role;
+    userRoleLabel.textContent = label;
+    userAvatar.textContent = label.charAt(0).toUpperCase();
+  }
+
+  function showLogin() {
+    dashboardRoot.classList.add('hidden');
+    loginScreen.classList.remove('hidden');
+  }
+
+  function logout() {
+    localStorage.removeItem('authToken');
+    showLogin();
+  }
+
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      loginFeedback.textContent = '';
+      loginFeedback.className = 'form-feedback';
+
+      try {
+        const res = await fetch(`${AUTH_BACKEND_URL}/api/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Credenciales inválidas');
+
+        localStorage.setItem('authToken', data.token);
+        showDashboard({ role: data.role, email: data.email });
+        loginForm.reset();
+      } catch (err) {
+        loginFeedback.textContent = err.message || 'No se pudo iniciar sesión.';
+        loginFeedback.classList.add('error');
+      }
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', logout);
+  }
+
+  const initialSession = getSession();
+  if (initialSession) {
+    showDashboard(initialSession);
+  } else {
+    showLogin();
+  }
+
   const sidebarNav = document.querySelector('.sidebar-nav');
   const items = sidebarNav.querySelectorAll('.nav-item');
   const adminContent = document.getElementById('adminContent');
@@ -610,6 +689,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (action) {
         renderSection(action);
       }
+    });
+  });
+
+  document.querySelectorAll('.quick-access [data-action]').forEach(card => {
+    card.addEventListener('click', () => {
+      const action = card.getAttribute('data-action');
+      const navItem = sidebarNav.querySelector(`.nav-item[data-action="${action}"]`);
+      if (navItem) setActive(navItem);
+      if (action) renderSection(action);
     });
   });
 });

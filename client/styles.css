@@ -330,6 +330,7 @@ body { background: var(--bg); color: var(--text-main); display: flex; }
   .main-content { margin-left: 0; }
   .quick-access .cards-grid { grid-template-columns: 1fr; }
   .stat-item { min-width: 100%; }
+  .login-card { padding: 36px 24px; }
 }
 
 /* Calendario - formulario de evento */
@@ -393,3 +394,19 @@ body { background: var(--bg); color: var(--text-main); display: flex; }
 .food-day-edit:hover { background: #16A34A; color: white; }
 .food-send-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid #E2E8F0; max-width: 720px; }
 .food-send-hint { margin: 8px 0 0; font-size: 13px; color: var(--text-muted); }
+
+/* Login */
+.dashboard-root { display: flex; width: 100%; }
+.dashboard-root.hidden { display: none; }
+.login-screen { position: fixed; inset: 0; background: var(--sidebar-bg); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 24px; box-sizing: border-box; }
+.login-screen.hidden { display: none; }
+.login-card { background: var(--topbar-bg); border-radius: var(--radius); padding: 56px 48px; width: 100%; max-width: 480px; display: flex; flex-direction: column; align-items: center; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.25); }
+.login-brand-icon { color: var(--sidebar-active-bg); margin-bottom: 16px; }
+.login-brand-icon svg { width: 36px; height: 36px; }
+.login-card h2 { margin: 0 0 6px; color: var(--accent); font-size: 26px; }
+.login-card p { margin: 0 0 32px; color: var(--text-muted); font-size: 16px; }
+.login-card .form-row { width: 100%; text-align: left; margin-bottom: 20px; }
+.login-card .form-row label { display: block; font-size: 14px; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; }
+.login-card .form-row input { width: 100%; box-sizing: border-box; padding: 14px 16px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 16px; font-family: inherit; }
+.login-submit { width: 100%; margin-top: 8px; padding: 14px 16px; font-size: 16px; }
+.logout-btn { margin-left: 12px; }
