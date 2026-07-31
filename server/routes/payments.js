@@ -37,7 +37,7 @@ router.post('/create_preference', async (req, res) => {
           pending: 'rousseauapp://payment/pending',
         },
         auto_return: 'approved',
-        notification_url: `${process.env.BACKEND_URL}/mp_webhook`,
+        notification_url: `${process.env.BACKEND_URL || 'https://admin-panel-rousseau.onrender.com'}/mp_webhook`,
       },
     });
 
