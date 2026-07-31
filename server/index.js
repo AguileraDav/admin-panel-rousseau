@@ -3,6 +3,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { admin, db } = require('./firebase');
+const paymentsRouter = require('./routes/payments');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,6 +27,8 @@ const ADMINS_COLLECTION = 'admins';
 app.get('/', (req, res) => {
   res.json({ ok: true, message: 'Backend de eventos funcionando' });
 });
+
+app.use('/', paymentsRouter);
 
 // Endpoint de login: valida correo y contraseña contra la colección "admins"
 app.post('/api/login', async (req, res) => {

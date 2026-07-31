@@ -4,6 +4,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const dashboardRoot = document.getElementById('dashboardRoot');
   const loginForm = document.getElementById('loginForm');
   const loginFeedback = document.getElementById('loginFeedback');
+  const togglePassword = document.getElementById('togglePassword');
+  const loginPasswordInput = document.getElementById('loginPassword');
+  const loginSubmitBtn = document.getElementById('loginSubmitBtn');
+  const loginSpinner = document.getElementById('loginSpinner');
+  const loginSubmitLabel = document.getElementById('loginSubmitLabel');
   const logoutBtn = document.getElementById('logoutBtn');
   const userRoleLabel = document.getElementById('userRoleLabel');
   const userAvatar = document.getElementById('userAvatar');
@@ -47,6 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const password = document.getElementById('loginPassword').value;
       loginFeedback.textContent = '';
       loginFeedback.className = 'form-feedback';
+      loginSubmitBtn.disabled = true;
+      loginSpinner.hidden = false;
+      loginSubmitLabel.textContent = 'Iniciando sesión...';
 
       try {
         const res = await fetch(`${AUTH_BACKEND_URL}/api/login`, {
@@ -63,12 +71,24 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         loginFeedback.textContent = err.message || 'No se pudo iniciar sesión.';
         loginFeedback.classList.add('error');
+      } finally {
+        loginSubmitBtn.disabled = false;
+        loginSpinner.hidden = true;
+        loginSubmitLabel.textContent = 'Iniciar sesión';
       }
     });
   }
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', logout);
+  }
+
+  if (togglePassword && loginPasswordInput) {
+    togglePassword.addEventListener('click', () => {
+      const isHidden = loginPasswordInput.type === 'password';
+      loginPasswordInput.type = isHidden ? 'text' : 'password';
+      togglePassword.setAttribute('aria-label', isHidden ? 'Ocultar contraseña' : 'Mostrar contraseña');
+    });
   }
 
   const initialSession = getSession();
@@ -313,7 +333,13 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         break;
       case 'pagos':
-        html = `<h2>Registro de Pagos</h2><p>Control de estado financiero por alumno.</p>`;
+        html = `
+          <h2>Registro de Pagos</h2>
+          <p>Pagos confirmados a través de Mercado Pago.</p>
+          <div id="paymentsList" class="payments-list">
+            <p class="payments-loading">Cargando pagos...</p>
+          </div>
+        `;
         break;
       case 'calificaciones':
         html = `
@@ -413,6 +439,65 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Envolvemos en un contenedor estándar para que no se pegue crudo
     adminContent.innerHTML = `<section class="generic-section" style="background:white; padding: 40px; border-radius: var(--radius); box-shadow: 0 4px 15px rgba(0,0,0,0.02)">${html}</section>`;
+
+    // Si renderizamos la sección pagos, cargamos los pagos confirmados desde la base de datos
+    if(action === 'pagos'){
+      const listEl = document.getElementById('paymentsList');
+      (async () => {
+        try {
+          const res = await fetch(`${AUTH_BACKEND_URL}/api/payments`);
+          if(!res.ok) throw new Error('Error en el servidor');
+          const data = await res.json();
+          const payments = data.payments || [];
+
+          if(payments.length === 0){
+            listEl.innerHTML = `<p class="payments-empty">Aún no hay pagos registrados.</p>`;
+            return;
+          }
+
+          const formatAmount = (amount, currency) => {
+            if(typeof amount !== 'number') return '—';
+            try {
+              return new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency || 'MXN' }).format(amount);
+            } catch {
+              return `$${amount}`;
+            }
+          };
+          const formatDate = (paidAt) => {
+            if(!paidAt || !paidAt._seconds) return '—';
+            return new Date(paidAt._seconds * 1000).toLocaleString('es-MX');
+          };
+
+          const rowsHTML = payments.map(p => `
+            <tr>
+              <td>${p.description || 'Pago'}</td>
+              <td>${p.payerEmail || p.userId || '—'}</td>
+              <td>${formatAmount(p.amount, p.currency)}</td>
+              <td>${formatDate(p.paidAt)}</td>
+              <td><span class="payment-status payment-status-${p.status || 'pendiente'}">${p.status || 'pendiente'}</span></td>
+            </tr>
+          `).join('');
+
+          listEl.innerHTML = `
+            <table class="payments-table">
+              <thead>
+                <tr>
+                  <th>Descripción</th>
+                  <th>Alumno / Correo</th>
+                  <th>Monto</th>
+                  <th>Fecha de pago</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>${rowsHTML}</tbody>
+            </table>
+          `;
+        } catch (err) {
+          console.error(err);
+          if(listEl) listEl.innerHTML = `<p class="payments-empty">No se pudieron cargar los pagos.</p>`;
+        }
+      })();
+    }
 
     // Si renderizamos la sección eventos, añadimos listeners para el formulario
     if(action === 'eventos'){

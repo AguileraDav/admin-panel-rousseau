@@ -23,9 +23,17 @@
       </div>
       <div class="form-row">
         <label for="loginPassword">Contraseña</label>
-        <input type="password" id="loginPassword" name="password" required />
+        <div class="password-field">
+          <input type="password" id="loginPassword" name="password" required />
+          <button type="button" id="togglePassword" class="password-toggle" aria-label="Mostrar contraseña">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </button>
+        </div>
       </div>
-      <button type="submit" class="btn-primary login-submit">Iniciar sesión</button>
+      <button type="submit" class="btn-primary login-submit" id="loginSubmitBtn">
+        <span class="login-spinner" id="loginSpinner" hidden></span>
+        <span id="loginSubmitLabel">Iniciar sesión</span>
+      </button>
       <div id="loginFeedback" class="form-feedback" aria-live="polite"></div>
     </form>
   </div>

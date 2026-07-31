@@ -408,5 +408,21 @@ body { background: var(--bg); color: var(--text-main); display: flex; }
 .login-card .form-row { width: 100%; text-align: left; margin-bottom: 20px; }
 .login-card .form-row label { display: block; font-size: 14px; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; }
 .login-card .form-row input { width: 100%; box-sizing: border-box; padding: 14px 16px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 16px; font-family: inherit; }
-.login-submit { width: 100%; margin-top: 8px; padding: 14px 16px; font-size: 16px; }
+.password-field { position: relative; }
+.password-field input { padding-right: 46px !important; }
+.password-toggle { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; display: flex; align-items: center; justify-content: center; }
+.password-toggle:hover { color: var(--accent); }
+.login-submit { width: 100%; margin-top: 8px; padding: 14px 16px; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.login-submit:disabled { opacity: 0.75; cursor: not-allowed; }
+.login-spinner { width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: login-spin 0.7s linear infinite; }
+@keyframes login-spin { to { transform: rotate(360deg); } }
 .logout-btn { margin-left: 12px; }
+
+.payments-list { margin-top: 20px; overflow-x: auto; }
+.payments-loading, .payments-empty { color: var(--text-muted); font-size: 14px; }
+.payments-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.payments-table th, .payments-table td { text-align: left; padding: 12px 14px; border-bottom: 1px solid #EDF2F7; }
+.payments-table th { color: var(--text-muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.02em; }
+.payment-status { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; text-transform: capitalize; }
+.payment-status-pagado { background: #DCFCE7; color: #16A34A; }
+.payment-status-pendiente { background: #FEF3C7; color: #B45309; }
