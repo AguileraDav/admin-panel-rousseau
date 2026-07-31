@@ -101,7 +101,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const sidebarNav = document.querySelector('.sidebar-nav');
   const items = sidebarNav.querySelectorAll('.nav-item');
   const adminContent = document.getElementById('adminContent');
-  
+
+  const sidebar = document.getElementById('sidebar');
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+  const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+  function closeMobileSidebar() {
+    sidebar.classList.remove('mobile-open');
+    sidebarOverlay.classList.remove('visible');
+  }
+
+  if (mobileMenuBtn && sidebar && sidebarOverlay) {
+    mobileMenuBtn.addEventListener('click', () => {
+      sidebar.classList.add('mobile-open');
+      sidebarOverlay.classList.add('visible');
+    });
+    sidebarOverlay.addEventListener('click', closeMobileSidebar);
+  }
+
   // Guardar contenido original de inicio para restaurar
   const inicioHTML = adminContent.innerHTML;
 
@@ -774,15 +791,19 @@ document.addEventListener('DOMContentLoaded', () => {
       if (action) {
         renderSection(action);
       }
+      closeMobileSidebar();
     });
   });
 
-  document.querySelectorAll('.quick-access [data-action]').forEach(card => {
-    card.addEventListener('click', () => {
-      const action = card.getAttribute('data-action');
-      const navItem = sidebarNav.querySelector(`.nav-item[data-action="${action}"]`);
-      if (navItem) setActive(navItem);
-      if (action) renderSection(action);
-    });
+  // Delegación de eventos: adminContent se reemplaza al navegar (ej. al volver a "Inicio"
+  // se restaura inicioHTML como elementos nuevos), así que un listener por tarjeta se perdería.
+  // Escuchamos en adminContent, que nunca se destruye, y buscamos la tarjeta desde el target del click.
+  adminContent.addEventListener('click', (e) => {
+    const card = e.target.closest('.quick-access [data-action]');
+    if (!card) return;
+    const action = card.getAttribute('data-action');
+    const navItem = sidebarNav.querySelector(`.nav-item[data-action="${action}"]`);
+    if (navItem) setActive(navItem);
+    if (action) renderSection(action);
   });
 });

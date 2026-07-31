@@ -41,8 +41,7 @@ router.post('/create_preference', async (req, res) => {
       },
     });
 
-    // sandbox_init_point es el checkout de PRUEBA; init_point es producción y falla con credenciales TEST-
-    res.json({ id: result.id, initPoint: result.sandbox_init_point });
+    res.json({ id: result.id, initPoint: result.init_point });
   } catch (err) {
     console.error('Error creando preferencia de Mercado Pago:', err);
     res.status(500).json({ error: 'No se pudo crear la preferencia' });

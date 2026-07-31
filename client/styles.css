@@ -168,7 +168,8 @@ body { background: var(--bg); color: var(--text-main); display: flex; }
   align-items: center;
   gap: 20px;
 }
-/* menu-toggle removed */
+.mobile-menu-btn { display: none; background: none; border: none; color: var(--accent); cursor: pointer; padding: 4px; align-items: center; justify-content: center; }
+.sidebar-overlay { display: none; }
 .topbar h1 {
   margin: 0;
   font-size: 20px;
@@ -326,11 +327,14 @@ body { background: var(--bg); color: var(--text-main); display: flex; }
   .stat-item { min-width: 40%; }
 }
 @media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+  .sidebar { transform: translateX(-100%); transition: transform 0.3s; position: fixed; top: 0; left: 0; bottom: 0; z-index: 200; }
+  .sidebar.mobile-open { transform: translateX(0); }
   .main-content { margin-left: 0; }
   .quick-access .cards-grid { grid-template-columns: 1fr; }
   .stat-item { min-width: 100%; }
   .login-card { padding: 36px 24px; }
+  .mobile-menu-btn { display: flex; }
+  .sidebar-overlay.visible { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 150; }
 }
 
 /* Calendario - formulario de evento */
