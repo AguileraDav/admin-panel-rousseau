@@ -480,17 +480,21 @@ document.addEventListener('DOMContentLoaded', () => {
               return `$${amount}`;
             }
           };
-          const formatDate = (paidAt) => {
-            if(!paidAt || !paidAt._seconds) return '—';
-            return new Date(paidAt._seconds * 1000).toLocaleString('es-MX');
+          // Los pagos ya confirmados por el webhook traen "paidAt" (timestamp de Firestore);
+          // los que la app crea como pendientes traen "createdAt" (número en milisegundos).
+          const formatDate = (p) => {
+            if(p.paidAt && p.paidAt._seconds) return new Date(p.paidAt._seconds * 1000).toLocaleString('es-MX');
+            if(typeof p.createdAt === 'number') return new Date(p.createdAt).toLocaleString('es-MX');
+            return '—';
           };
 
           const rowsHTML = payments.map(p => `
             <tr>
-              <td>${p.description || 'Pago'}</td>
-              <td>${p.payerEmail || p.userId || '—'}</td>
+              <td>${p.concept || p.description || 'Pago'}</td>
+              <td>${p.type || '—'}</td>
+              <td>${p.payerEmail || p.parentId || p.userId || '—'}</td>
               <td>${formatAmount(p.amount, p.currency)}</td>
-              <td>${formatDate(p.paidAt)}</td>
+              <td>${formatDate(p)}</td>
               <td><span class="payment-status payment-status-${p.status || 'pendiente'}">${p.status || 'pendiente'}</span></td>
             </tr>
           `).join('');
@@ -499,10 +503,11 @@ document.addEventListener('DOMContentLoaded', () => {
             <table class="payments-table">
               <thead>
                 <tr>
-                  <th>Descripción</th>
-                  <th>Alumno / Correo</th>
+                  <th>Concepto</th>
+                  <th>Tipo</th>
+                  <th>Alumno / Padre</th>
                   <th>Monto</th>
-                  <th>Fecha de pago</th>
+                  <th>Fecha</th>
                   <th>Estado</th>
                 </tr>
               </thead>

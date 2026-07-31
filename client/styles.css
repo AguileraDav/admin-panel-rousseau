@@ -429,4 +429,4 @@ body { background: var(--bg); color: var(--text-main); display: flex; }
 .payments-table th { color: var(--text-muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.02em; }
 .payment-status { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; text-transform: capitalize; }
 .payment-status-pagado { background: #DCFCE7; color: #16A34A; }
-.payment-status-pendiente { background: #FEF3C7; color: #B45309; }
+.payment-status-pendiente, .payment-status-pending { background: #FEF3C7; color: #B45309; }

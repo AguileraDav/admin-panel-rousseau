@@ -98,11 +98,21 @@ router.post('/mp_webhook', async (req, res) => {
 });
 
 // Lista los pagos registrados, más recientes primero (para el dashboard)
+// No usa orderBy en Firestore porque no todos los documentos tienen los mismos
+// campos de fecha (paidAt vs createdAt) — se ordena aquí una vez leídos.
 router.get('/api/payments', async (req, res) => {
   if (!db) return res.status(500).json({ error: 'Base de datos no inicializada' });
   try {
-    const snapshot = await db.collection(PAYMENTS_COLLECTION).orderBy('paidAt', 'desc').limit(100).get();
+    const snapshot = await db.collection(PAYMENTS_COLLECTION).limit(200).get();
     const payments = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const toMillis = (p) => {
+      if (p.paidAt && p.paidAt._seconds) return p.paidAt._seconds * 1000;
+      if (typeof p.createdAt === 'number') return p.createdAt;
+      return 0;
+    };
+    payments.sort((a, b) => toMillis(b) - toMillis(a));
+
     res.json({ payments });
   } catch (err) {
     console.error('Error leyendo pagos:', err);
