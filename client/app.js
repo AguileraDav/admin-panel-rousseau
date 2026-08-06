@@ -921,12 +921,29 @@ document.addEventListener('DOMContentLoaded', () => {
         studentSelect.addEventListener('change', () => {
           selectedStudentId = studentSelect.value || null;
 
-          // Si el alumno ya tiene calificaciones guardadas, las cargamos por nombre de materia
+          // Si el alumno ya tiene materias guardadas (arreglo de objetos), las cargamos;
+          // si no, partimos de la lista de materias por defecto sin calificar.
           const student = gradeStudents.find(s => s.id === selectedStudentId);
-          gradeSubjects.forEach(subject => {
-            const saved = student && student.calificaciones ? student.calificaciones[subject.name] : null;
-            subject.ratings = Object.fromEntries(BIMESTRES.map(b => [b, (saved && saved[b]) || null]));
-          });
+          const savedMaterias = student && Array.isArray(student.materias) ? student.materias : null;
+
+          gradeSubjects.length = 0;
+          if(savedMaterias && savedMaterias.length > 0){
+            savedMaterias.forEach((materia, i) => {
+              gradeSubjects.push({
+                id: `subj-${i}`,
+                name: materia.nombre,
+                ratings: Object.fromEntries(BIMESTRES.map(b => [b, (materia.calificaciones && materia.calificaciones[b]) || null]))
+              });
+            });
+          } else {
+            DEFAULT_SUBJECTS.forEach((name, i) => {
+              gradeSubjects.push({
+                id: `subj-${i}`,
+                name,
+                ratings: Object.fromEntries(BIMESTRES.map(b => [b, null]))
+              });
+            });
+          }
 
           renderSection('calificaciones');
         });
@@ -939,22 +956,20 @@ document.addEventListener('DOMContentLoaded', () => {
           uploadBtn.disabled = true;
           uploadBtn.textContent = 'Subiendo...';
 
-          // Armamos el objeto calificaciones: nombre de materia -> color por bimestre
-          const calificaciones = Object.fromEntries(
-            gradeSubjects.map(s => [s.name, s.ratings])
-          );
+          // Armamos el arreglo de materias: cada una con su nombre y calificación por bimestre
+          const materias = gradeSubjects.map(s => ({ nombre: s.name, calificaciones: s.ratings }));
 
           try {
             const res = await fetch(`${AUTH_BACKEND_URL}/api/grades/${selectedStudentId}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ calificaciones })
+              body: JSON.stringify({ materias })
             });
             const data = await res.json();
             if(!res.ok) throw new Error(data.error || 'Error al subir calificaciones');
 
             const student = gradeStudents.find(s => s.id === selectedStudentId);
-            if(student) student.calificaciones = calificaciones;
+            if(student) student.materias = materias;
 
             if(uploadFeedback){ uploadFeedback.textContent = 'Calificaciones subidas correctamente.'; uploadFeedback.classList.add('success'); }
           } catch (err) {
