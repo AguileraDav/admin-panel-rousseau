@@ -113,6 +113,7 @@ body { background: var(--bg); color: var(--text-main); display: flex; }
 .n-inscripciones { color: var(--c-card-insc); }
 .n-alimentos { color: var(--c-card-rep); }
 .n-solicitudes { color: var(--c-card-conf); }
+.n-asistencias { color: var(--c-calendario); }
 .c-chat { color: var(--c-chat); }
 .c-eventos { color: var(--c-eventos); }
 .c-calendario { color: var(--c-calendario); }
@@ -377,6 +378,12 @@ body { background: var(--bg); color: var(--text-main); display: flex; }
 .cal-day-today { border: 2px solid var(--sidebar-active-bg); }
 .cal-day-bars { display: flex; flex-direction: column; gap: 2px; }
 .cal-day-bar { display: block; height: 6px; border-radius: 3px; }
+
+.att-day { cursor: pointer; font-family: inherit; align-items: flex-start; }
+.att-day:disabled { cursor: not-allowed; opacity: 0.6; }
+.att-day-present { background: #DCFCE7; border-color: #86EFAC; }
+.att-day-absent { background: #FEE2E2; border-color: #FCA5A5; }
+.att-hint { color: var(--text-muted); font-size: 14px; margin-top: 12px; }
 
 .cal-legend { list-style: none; margin: 20px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-width: 720px; }
 .cal-legend-empty { color: var(--text-muted); font-size: 14px; }

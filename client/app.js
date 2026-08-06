@@ -305,6 +305,78 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
 
+  // Estado de asistencia por alumno (verdadero/falso por día del mes)
+  let attendanceStudents = []; // reutiliza la lista de alumnos de la colección "grades"
+  let attendanceStudentId = null;
+  let attendanceViewDate = new Date(); // mes actualmente visible
+  let attendanceDays = {}; // { 'YYYY-MM-DD': true/false }
+
+  function dateKey(date){
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function buildAttendanceHTML(){
+    const year = attendanceViewDate.getFullYear();
+    const month = attendanceViewDate.getMonth();
+    const firstOfMonth = new Date(year, month, 1);
+    const firstWeekday = (firstOfMonth.getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const cells = [];
+    for(let i = 0; i < firstWeekday; i++) cells.push(null);
+    for(let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
+    while(cells.length % 7 !== 0) cells.push(null);
+
+    const daysHTML = cells.map(date => {
+      if(!date) return `<div class="cal-day cal-day-empty"></div>`;
+      const key = dateKey(date);
+      const value = attendanceDays[key];
+      const stateClass = value === true ? 'att-day-present' : value === false ? 'att-day-absent' : '';
+      const isToday = date.toDateString() === new Date().toDateString();
+      return `
+        <button type="button" class="cal-day att-day ${stateClass} ${isToday ? 'cal-day-today' : ''}" data-att-day="${key}" ${attendanceStudentId ? '' : 'disabled'}>
+          <span class="cal-day-num">${date.getDate()}</span>
+        </button>
+      `;
+    }).join('');
+
+    const studentOptionsHTML = attendanceStudents.map(st =>
+      `<option value="${st.id}" ${st.id === attendanceStudentId ? 'selected' : ''}>${st.childName || '(sin nombre)'}</option>`
+    ).join('');
+
+    return `
+      <div class="calendar-section">
+        <div class="form-row">
+          <label for="attStudentSelect">Alumno</label>
+          <select id="attStudentSelect">
+            <option value="">Selecciona un alumno...</option>
+            ${studentOptionsHTML}
+          </select>
+        </div>
+
+        <div class="cal-header">
+          <button type="button" id="attPrevMonth" class="btn-secondary">←</button>
+          <h3>${MONTH_NAMES[month]} ${year}</h3>
+          <button type="button" id="attNextMonth" class="btn-secondary">→</button>
+        </div>
+        <div class="cal-grid cal-grid-labels">
+          ${WEEKDAY_LABELS.map(l => `<div class="cal-weekday">${l}</div>`).join('')}
+        </div>
+        <div class="cal-grid">${daysHTML}</div>
+
+        <p class="att-hint">Haz clic en un día para marcarlo: verde (asistió), rojo (faltó). Da click de nuevo para quitar la marca.</p>
+
+        <div class="form-actions">
+          <button type="button" id="uploadAttendanceBtn" class="btn-primary" ${attendanceStudentId ? '' : 'disabled'}>Guardar asistencia</button>
+        </div>
+        <div id="attendanceUploadFeedback" class="form-feedback" aria-live="polite"></div>
+      </div>
+    `;
+  }
+
   function setActive(el){
     items.forEach(i => i.classList.remove('active'));
     el.classList.add('active');
@@ -363,6 +435,13 @@ document.addEventListener('DOMContentLoaded', () => {
           <div id="paymentsList" class="payments-list">
             <p class="payments-loading">Cargando pagos...</p>
           </div>
+        `;
+        break;
+      case 'asistencias':
+        html = `
+          <h2>Control de Asistencias</h2>
+          <p>Selecciona un alumno y marca su asistencia día por día.</p>
+          ${buildAttendanceHTML()}
         `;
         break;
       case 'solicitudes':
@@ -721,6 +800,104 @@ document.addEventListener('DOMContentLoaded', () => {
           } finally {
             uploadBtn.disabled = false;
             uploadBtn.textContent = 'Subir calificaciones';
+          }
+        });
+      }
+    }
+
+    // Si renderizamos la sección asistencias, añadimos listeners para el selector, navegación y días
+    if(action === 'asistencias'){
+      const studentSelect = document.getElementById('attStudentSelect');
+      const prevBtn = document.getElementById('attPrevMonth');
+      const nextBtn = document.getElementById('attNextMonth');
+      const dayBtns = document.querySelectorAll('[data-att-day]');
+      const uploadBtn = document.getElementById('uploadAttendanceBtn');
+      const uploadFeedback = document.getElementById('attendanceUploadFeedback');
+
+      // Cargamos la lista de alumnos (reutilizamos la colección "grades") una sola vez
+      if(attendanceStudents.length === 0){
+        (async () => {
+          try {
+            const res = await fetch(`${AUTH_BACKEND_URL}/api/grades`);
+            if(!res.ok) throw new Error('Error en el servidor');
+            const data = await res.json();
+            attendanceStudents = data.students || [];
+            renderSection('asistencias');
+          } catch (err) {
+            console.error('Error cargando alumnos:', err);
+          }
+        })();
+      }
+
+      if(studentSelect){
+        studentSelect.addEventListener('change', () => {
+          attendanceStudentId = studentSelect.value || null;
+          attendanceDays = {};
+          if(!attendanceStudentId){ renderSection('asistencias'); return; }
+
+          (async () => {
+            try {
+              const res = await fetch(`${AUTH_BACKEND_URL}/api/asistencia/${attendanceStudentId}`);
+              if(!res.ok) throw new Error('Error en el servidor');
+              const data = await res.json();
+              attendanceDays = data.days || {};
+            } catch (err) {
+              console.error('Error cargando asistencia:', err);
+            } finally {
+              renderSection('asistencias');
+            }
+          })();
+        });
+      }
+
+      if(prevBtn){
+        prevBtn.addEventListener('click', () => {
+          attendanceViewDate = new Date(attendanceViewDate.getFullYear(), attendanceViewDate.getMonth() - 1, 1);
+          renderSection('asistencias');
+        });
+      }
+      if(nextBtn){
+        nextBtn.addEventListener('click', () => {
+          attendanceViewDate = new Date(attendanceViewDate.getFullYear(), attendanceViewDate.getMonth() + 1, 1);
+          renderSection('asistencias');
+        });
+      }
+
+      dayBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          if(!attendanceStudentId) return;
+          const key = btn.getAttribute('data-att-day');
+          const current = attendanceDays[key];
+          // ciclo: sin marcar -> presente (true) -> ausente (false) -> sin marcar
+          if(current === undefined) attendanceDays[key] = true;
+          else if(current === true) attendanceDays[key] = false;
+          else delete attendanceDays[key];
+          renderSection('asistencias');
+        });
+      });
+
+      if(uploadBtn){
+        uploadBtn.addEventListener('click', async () => {
+          if(!attendanceStudentId) return;
+          if(uploadFeedback){ uploadFeedback.textContent = ''; uploadFeedback.className = 'form-feedback'; }
+          uploadBtn.disabled = true;
+          uploadBtn.textContent = 'Guardando...';
+
+          try {
+            const res = await fetch(`${AUTH_BACKEND_URL}/api/asistencia/${attendanceStudentId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ days: attendanceDays })
+            });
+            const data = await res.json();
+            if(!res.ok) throw new Error(data.error || 'Error al guardar asistencia');
+
+            if(uploadFeedback){ uploadFeedback.textContent = 'Asistencia guardada correctamente.'; uploadFeedback.classList.add('success'); }
+          } catch (err) {
+            if(uploadFeedback){ uploadFeedback.textContent = err.message || 'No se pudo guardar la asistencia.'; uploadFeedback.classList.add('error'); }
+          } finally {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'Guardar asistencia';
           }
         });
       }

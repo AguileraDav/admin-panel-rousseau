@@ -30,6 +30,9 @@ const GRADES_COLLECTION = 'grades';
 // Nombre de la colección donde se guardan las solicitudes/mensajes de los padres
 const REQUESTS_COLLECTION = 'solicitudes';
 
+// Nombre de la colección donde se guarda la asistencia diaria por alumno
+const ATTENDANCE_COLLECTION = 'asistencia';
+
 app.get('/', (req, res) => {
   res.json({ ok: true, message: 'Backend de eventos funcionando' });
 });
@@ -212,6 +215,40 @@ app.get('/api/solicitudes', async (req, res) => {
   } catch (err) {
     console.error('Error leyendo solicitudes:', err);
     res.status(500).json({ error: 'Error al leer solicitudes' });
+  }
+});
+
+// Endpoint para obtener la asistencia guardada de un alumno
+app.get('/api/asistencia/:id', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Base de datos no inicializada' });
+  const { id } = req.params;
+  try {
+    const doc = await db.collection(ATTENDANCE_COLLECTION).doc(id).get();
+    res.json({ id, days: doc.exists ? (doc.data().days || {}) : {} });
+  } catch (err) {
+    console.error('Error leyendo asistencia:', err);
+    res.status(500).json({ error: 'Error al leer asistencia' });
+  }
+});
+
+// Endpoint para guardar la asistencia (verdadero/falso) por día de un alumno
+app.put('/api/asistencia/:id', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Base de datos no inicializada' });
+
+  const { id } = req.params;
+  const { days } = req.body || {};
+  if (!days || typeof days !== 'object') {
+    return res.status(400).json({ error: 'Faltan los días de asistencia' });
+  }
+
+  try {
+    const docRef = db.collection(ATTENDANCE_COLLECTION).doc(id);
+    await docRef.set({ days }, { merge: true });
+    const updated = await docRef.get();
+    res.json({ id, data: updated.data() });
+  } catch (err) {
+    console.error('Error guardando asistencia:', err);
+    res.status(500).json({ error: 'Error al guardar asistencia' });
   }
 });
 
