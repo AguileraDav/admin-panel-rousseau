@@ -430,3 +430,10 @@ body { background: var(--bg); color: var(--text-main); display: flex; }
 .payment-status { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; text-transform: capitalize; }
 .payment-status-pagado { background: #DCFCE7; color: #16A34A; }
 .payment-status-pendiente, .payment-status-pending { background: #FEF3C7; color: #B45309; }
+
+.request-card { border: 1px solid #EDF2F7; border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
+.request-card-header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.request-card-email { color: var(--text-muted); font-size: 13px; margin-left: 8px; }
+.request-card-date { color: var(--text-muted); font-size: 13px; white-space: nowrap; }
+.request-card-subject { font-weight: 600; margin-top: 6px; }
+.request-card-message { margin-top: 6px; color: var(--text-muted); font-size: 14px; line-height: 1.5; }

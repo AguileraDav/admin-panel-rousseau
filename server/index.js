@@ -27,6 +27,9 @@ const ADMINS_COLLECTION = 'admins';
 // Nombre de la colección donde se guardan las calificaciones por alumno
 const GRADES_COLLECTION = 'grades';
 
+// Nombre de la colección donde se guardan las solicitudes/mensajes de los padres
+const REQUESTS_COLLECTION = 'solicitudes';
+
 app.get('/', (req, res) => {
   res.json({ ok: true, message: 'Backend de eventos funcionando' });
 });
@@ -196,6 +199,19 @@ app.put('/api/grades/:id', async (req, res) => {
   } catch (err) {
     console.error('Error guardando calificaciones:', err);
     res.status(500).json({ error: 'Error al guardar calificaciones' });
+  }
+});
+
+// Endpoint para listar las solicitudes/mensajes enviados por los padres
+app.get('/api/solicitudes', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Base de datos no inicializada' });
+  try {
+    const snapshot = await db.collection(REQUESTS_COLLECTION).orderBy('timestamp', 'desc').get();
+    const solicitudes = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ solicitudes });
+  } catch (err) {
+    console.error('Error leyendo solicitudes:', err);
+    res.status(500).json({ error: 'Error al leer solicitudes' });
   }
 });
 

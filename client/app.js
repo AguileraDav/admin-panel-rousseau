@@ -365,6 +365,15 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         `;
         break;
+      case 'solicitudes':
+        html = `
+          <h2>Solicitudes</h2>
+          <p>Mensajes enviados por los padres de familia.</p>
+          <div id="solicitudesList" class="payments-list">
+            <p class="payments-loading">Cargando solicitudes...</p>
+          </div>
+        `;
+        break;
       case 'calificaciones':
         html = `
           <h2>Calificaciones por Materia</h2>
@@ -524,6 +533,47 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
           console.error(err);
           if(listEl) listEl.innerHTML = `<p class="payments-empty">No se pudieron cargar los pagos.</p>`;
+        }
+      })();
+    }
+
+    // Si renderizamos la sección solicitudes, cargamos los mensajes desde la base de datos
+    if(action === 'solicitudes'){
+      const listEl = document.getElementById('solicitudesList');
+      (async () => {
+        try {
+          const res = await fetch(`${AUTH_BACKEND_URL}/api/solicitudes`);
+          if(!res.ok) throw new Error('Error en el servidor');
+          const data = await res.json();
+          const solicitudes = data.solicitudes || [];
+
+          if(solicitudes.length === 0){
+            listEl.innerHTML = `<p class="payments-empty">Aún no hay solicitudes.</p>`;
+            return;
+          }
+
+          const formatDate = (s) => {
+            if(s.timestamp && s.timestamp._seconds) return new Date(s.timestamp._seconds * 1000).toLocaleString('es-MX');
+            if(typeof s.timestamp === 'number') return new Date(s.timestamp).toLocaleString('es-MX');
+            return '—';
+          };
+
+          listEl.innerHTML = solicitudes.map(s => `
+            <div class="request-card">
+              <div class="request-card-header">
+                <div>
+                  <strong>${s.userName || 'Usuario desconocido'}</strong>
+                  <span class="request-card-email">${s.userEmail || ''}</span>
+                </div>
+                <span class="request-card-date">${formatDate(s)}</span>
+              </div>
+              <div class="request-card-subject">${s.subject || '(sin asunto)'}</div>
+              <p class="request-card-message">${s.message || ''}</p>
+            </div>
+          `).join('');
+        } catch (err) {
+          console.error(err);
+          if(listEl) listEl.innerHTML = `<p class="payments-empty">No se pudieron cargar las solicitudes.</p>`;
         }
       })();
     }
