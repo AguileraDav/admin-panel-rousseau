@@ -148,14 +148,16 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
   // Bimestres: cada materia tiene una calificación (estrella) independiente por bimestre
   const BIMESTRES = ['B1', 'B2', 'B3', 'B4', 'B5'];
-  // rating por bimestre: null (sin calificar), 'destacado' (verde), 'proceso' (amarillo), 'dificulta' (rojo)
+  // rating por bimestre: null (sin calificar), 'green' (destacado), 'yellow' (en proceso), 'red' (se le dificulta)
   const gradeSubjects = DEFAULT_SUBJECTS.map((name, i) => ({
     id: `subj-${i}`,
     name,
     ratings: Object.fromEntries(BIMESTRES.map(b => [b, null]))
   }));
-  const RATING_CYCLE = [null, 'destacado', 'proceso', 'dificulta'];
-  const RATING_LABELS = { destacado: 'Destacado', proceso: 'En proceso', dificulta: 'Se le dificulta' };
+  const RATING_CYCLE = [null, 'green', 'yellow', 'red'];
+  const RATING_LABELS = { green: 'Destacado', yellow: 'En proceso', red: 'Se le dificulta' };
+  let gradeStudents = []; // alumnos cargados desde la colección "grades"
+  let selectedStudentId = null;
 
   function buildGradesHTML(){
     const rowsHTML = gradeSubjects.map(s => {
@@ -174,8 +176,20 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }).join('');
 
+    const studentOptionsHTML = gradeStudents.map(st =>
+      `<option value="${st.id}" ${st.id === selectedStudentId ? 'selected' : ''}>${st.childName || '(sin nombre)'}</option>`
+    ).join('');
+
     return `
       <div class="calendar-section">
+        <div class="form-row">
+          <label for="gradeStudentSelect">Alumno</label>
+          <select id="gradeStudentSelect">
+            <option value="">Selecciona un alumno...</option>
+            ${studentOptionsHTML}
+          </select>
+        </div>
+
         <table class="grades-table">
           <thead>
             <tr><th>Materia</th><th class="grade-star-cell">${BIMESTRES.map(b => `<span class="grade-bimestre-label">${b}</span>`).join('')}</th><th></th></tr>
@@ -184,22 +198,15 @@ document.addEventListener('DOMContentLoaded', () => {
         </table>
 
         <div class="grades-legend">
-          <span><span class="star-btn star-destacado">★</span> Destacado</span>
-          <span><span class="star-btn star-proceso">★</span> En proceso</span>
-          <span><span class="star-btn star-dificulta">★</span> Se le dificulta</span>
+          <span><span class="star-btn star-green">★</span> Destacado</span>
+          <span><span class="star-btn star-yellow">★</span> En proceso</span>
+          <span><span class="star-btn star-red">★</span> Se le dificulta</span>
         </div>
 
-        <h3 class="cal-form-title">Agregar materia</h3>
-        <form id="subjectForm" class="event-form">
-          <div class="form-row">
-            <label for="subjectName">Nombre de la materia</label>
-            <input type="text" id="subjectName" name="name" placeholder="Ej. Música" required />
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="btn-primary">Agregar materia</button>
-          </div>
-          <div id="subjectFeedback" class="form-feedback" aria-live="polite"></div>
-        </form>
+        <div class="form-actions">
+          <button type="button" id="uploadGradesBtn" class="btn-primary" ${selectedStudentId ? '' : 'disabled'}>Subir calificaciones</button>
+        </div>
+        <div id="gradesUploadFeedback" class="form-feedback" aria-live="polite"></div>
       </div>
     `;
   }
@@ -361,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
       case 'calificaciones':
         html = `
           <h2>Calificaciones por Materia</h2>
-          <p>Haz clic en la estrella para calificar: verde (destacado), amarillo (en proceso), rojo (se le dificulta).</p>
+          <p>Haz clic en la estrella para calificar: verde (destacado), amarillo (en proceso), rojo (se le dificulta). Para cambiar la estrella de color da click nuevamente.</p>
           ${buildGradesHTML()}
         `;
         break;
@@ -579,8 +586,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if(action === 'calificaciones'){
       const starBtns = document.querySelectorAll('[data-toggle-rating]');
       const deleteBtns = document.querySelectorAll('[data-delete-subject]');
-      const form = document.getElementById('subjectForm');
-      const feedback = document.getElementById('subjectFeedback');
+      const studentSelect = document.getElementById('gradeStudentSelect');
+      const uploadBtn = document.getElementById('uploadGradesBtn');
+      const uploadFeedback = document.getElementById('gradesUploadFeedback');
 
       starBtns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -603,20 +611,67 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
 
-      if(form){
-        form.addEventListener('submit', (e) => {
-          e.preventDefault();
-          if(feedback){ feedback.textContent = ''; feedback.className = 'form-feedback'; }
-
-          const nameInput = document.getElementById('subjectName');
-          const name = nameInput.value.trim();
-          if(!name){
-            if(feedback){ feedback.textContent = 'Escribe el nombre de la materia.'; feedback.classList.add('error'); }
-            return;
+      // Cargamos la lista de alumnos (colección "grades") una sola vez
+      if(gradeStudents.length === 0){
+        (async () => {
+          try {
+            const res = await fetch(`${AUTH_BACKEND_URL}/api/grades`);
+            if(!res.ok) throw new Error('Error en el servidor');
+            const data = await res.json();
+            gradeStudents = data.students || [];
+            renderSection('calificaciones');
+          } catch (err) {
+            console.error('Error cargando alumnos:', err);
           }
+        })();
+      }
 
-          gradeSubjects.push({ id: `subj-${Date.now()}`, name, ratings: Object.fromEntries(BIMESTRES.map(b => [b, null])) });
+      if(studentSelect){
+        studentSelect.addEventListener('change', () => {
+          selectedStudentId = studentSelect.value || null;
+
+          // Si el alumno ya tiene calificaciones guardadas, las cargamos por nombre de materia
+          const student = gradeStudents.find(s => s.id === selectedStudentId);
+          gradeSubjects.forEach(subject => {
+            const saved = student && student.calificaciones ? student.calificaciones[subject.name] : null;
+            subject.ratings = Object.fromEntries(BIMESTRES.map(b => [b, (saved && saved[b]) || null]));
+          });
+
           renderSection('calificaciones');
+        });
+      }
+
+      if(uploadBtn){
+        uploadBtn.addEventListener('click', async () => {
+          if(!selectedStudentId) return;
+          if(uploadFeedback){ uploadFeedback.textContent = ''; uploadFeedback.className = 'form-feedback'; }
+          uploadBtn.disabled = true;
+          uploadBtn.textContent = 'Subiendo...';
+
+          // Armamos el objeto calificaciones: nombre de materia -> color por bimestre
+          const calificaciones = Object.fromEntries(
+            gradeSubjects.map(s => [s.name, s.ratings])
+          );
+
+          try {
+            const res = await fetch(`${AUTH_BACKEND_URL}/api/grades/${selectedStudentId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ calificaciones })
+            });
+            const data = await res.json();
+            if(!res.ok) throw new Error(data.error || 'Error al subir calificaciones');
+
+            const student = gradeStudents.find(s => s.id === selectedStudentId);
+            if(student) student.calificaciones = calificaciones;
+
+            if(uploadFeedback){ uploadFeedback.textContent = 'Calificaciones subidas correctamente.'; uploadFeedback.classList.add('success'); }
+          } catch (err) {
+            if(uploadFeedback){ uploadFeedback.textContent = err.message || 'No se pudieron subir las calificaciones.'; uploadFeedback.classList.add('error'); }
+          } finally {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'Subir calificaciones';
+          }
         });
       }
     }

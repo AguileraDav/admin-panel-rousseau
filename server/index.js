@@ -24,6 +24,9 @@ const CALENDAR_COLLECTION = 'calendar';
 // Nombre de la colección donde se guardan las cuentas con acceso al panel
 const ADMINS_COLLECTION = 'admins';
 
+// Nombre de la colección donde se guardan las calificaciones por alumno
+const GRADES_COLLECTION = 'grades';
+
 app.get('/', (req, res) => {
   res.json({ ok: true, message: 'Backend de eventos funcionando' });
 });
@@ -156,6 +159,43 @@ app.get('/api/calendar', async (req, res) => {
   } catch (err) {
     console.error('Error leyendo el calendario:', err);
     res.status(500).json({ error: 'Error al leer el calendario' });
+  }
+});
+
+// Endpoint para listar alumnos (para el selector del panel de calificaciones)
+app.get('/api/grades', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Base de datos no inicializada' });
+  try {
+    const snapshot = await db.collection(GRADES_COLLECTION).get();
+    const students = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ students });
+  } catch (err) {
+    console.error('Error leyendo calificaciones:', err);
+    res.status(500).json({ error: 'Error al leer calificaciones' });
+  }
+});
+
+// Endpoint para subir las calificaciones (por estrella de color) de un alumno
+app.put('/api/grades/:id', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Base de datos no inicializada' });
+
+  const { id } = req.params;
+  const { calificaciones } = req.body || {};
+  if (!calificaciones || typeof calificaciones !== 'object') {
+    return res.status(400).json({ error: 'Faltan las calificaciones' });
+  }
+
+  try {
+    const docRef = db.collection(GRADES_COLLECTION).doc(id);
+    const doc = await docRef.get();
+    if (!doc.exists) return res.status(404).json({ error: 'Alumno no encontrado' });
+
+    await docRef.update({ calificaciones });
+    const updated = await docRef.get();
+    res.json({ id, data: updated.data() });
+  } catch (err) {
+    console.error('Error guardando calificaciones:', err);
+    res.status(500).json({ error: 'Error al guardar calificaciones' });
   }
 });
 
