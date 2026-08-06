@@ -33,6 +33,9 @@ const REQUESTS_COLLECTION = 'solicitudes';
 // Nombre de la colección donde se guarda la asistencia diaria por alumno
 const ATTENDANCE_COLLECTION = 'asistencia';
 
+// Nombre de la colección donde se guardan las inscripciones de alumnos
+const ENROLLMENTS_COLLECTION = 'inscripciones';
+
 app.get('/', (req, res) => {
   res.json({ ok: true, message: 'Backend de eventos funcionando' });
 });
@@ -99,6 +102,49 @@ app.get('/api/events', async (req, res) => {
   } catch (err) {
     console.error('Error leyendo eventos:', err);
     res.status(500).json({ error: 'Error al leer eventos' });
+  }
+});
+
+// Endpoint para registrar una inscripción
+app.post('/api/inscripciones', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Base de datos no inicializada' });
+
+  const { parentName, parentEmail, parentPhone, parentId, studentName, studentCode, status } = req.body || {};
+  if (!parentName || !parentEmail || !parentPhone || !studentName || !studentCode) {
+    return res.status(400).json({ error: 'Faltan datos obligatorios de la inscripción' });
+  }
+
+  try {
+    const docRef = await db.collection(ENROLLMENTS_COLLECTION).add({
+      parentName,
+      parentEmail,
+      parentPhone,
+      parentId: parentId || '',
+      studentName,
+      studentCode,
+      status: status || 'approved',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      reviewedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    const doc = await docRef.get();
+    res.status(201).json({ id: docRef.id, data: doc.data() });
+  } catch (err) {
+    console.error('Error guardando inscripción:', err);
+    res.status(500).json({ error: 'Error al guardar la inscripción' });
+  }
+});
+
+// Endpoint para listar inscripciones
+app.get('/api/inscripciones', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Base de datos no inicializada' });
+  try {
+    const snapshot = await db.collection(ENROLLMENTS_COLLECTION).orderBy('createdAt', 'desc').limit(50).get();
+    const inscripciones = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ inscripciones });
+  } catch (err) {
+    console.error('Error leyendo inscripciones:', err);
+    res.status(500).json({ error: 'Error al leer inscripciones' });
   }
 });
 

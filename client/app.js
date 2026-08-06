@@ -542,6 +542,56 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         break;
       }
+      case 'inscripciones':
+        html = `
+          <h2>Inscripciones</h2>
+          <p>Registra una nueva inscripción de alumno.</p>
+          <div class="calendar-section">
+            <form id="enrollmentForm" class="event-form">
+              <div class="form-row">
+                <label for="enrollStudentName">Nombre del alumno</label>
+                <input type="text" id="enrollStudentName" name="studentName" placeholder="Ej. Melany Mitchell Rivero Gonzalez" required />
+              </div>
+              <div class="form-row">
+                <label for="enrollStudentCode">Código del alumno</label>
+                <input type="text" id="enrollStudentCode" name="studentCode" placeholder="Ej. ROUSS-2026-001" required />
+              </div>
+              <div class="form-row">
+                <label for="enrollParentName">Nombre del padre/madre/tutor</label>
+                <input type="text" id="enrollParentName" name="parentName" placeholder="Ej. Valeria Duarte Rosas" required />
+              </div>
+              <div class="form-row">
+                <label for="enrollParentEmail">Correo del padre/madre/tutor</label>
+                <input type="email" id="enrollParentEmail" name="parentEmail" placeholder="correo@ejemplo.com" required />
+              </div>
+              <div class="form-row">
+                <label for="enrollParentPhone">Teléfono del padre/madre/tutor</label>
+                <input type="tel" id="enrollParentPhone" name="parentPhone" placeholder="Ej. 5577215954" required />
+              </div>
+              <div class="form-row">
+                <label for="enrollParentId">ID del padre/madre/tutor (opcional)</label>
+                <input type="text" id="enrollParentId" name="parentId" placeholder="ID de cuenta del padre" />
+              </div>
+              <div class="form-row">
+                <label for="enrollStatus">Estado</label>
+                <select id="enrollStatus" name="status">
+                  <option value="approved">Aprobada</option>
+                  <option value="pendiente">Pendiente</option>
+                  <option value="rejected">Rechazada</option>
+                </select>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn-primary">Guardar inscripción</button>
+                <button type="button" id="enrollCancel" class="btn-secondary">Cancelar</button>
+              </div>
+              <div id="enrollFeedback" class="form-feedback" aria-live="polite"></div>
+            </form>
+          </div>
+          <div id="enrollmentsList" class="payments-list">
+            <p class="payments-loading">Cargando inscripciones...</p>
+          </div>
+        `;
+        break;
       case 'perfil':
         html = `<h2>Configuración de Perfil</h2><p>Ajusta las credenciales de tu cuenta de administrador.</p>`;
         break;
@@ -697,6 +747,118 @@ document.addEventListener('DOMContentLoaded', () => {
           } catch (err) {
             console.error(err);
             if(feedback){ feedback.textContent = 'No se pudo crear el evento. (Endpoint no disponible)'; feedback.classList.add('error'); }
+          }
+        });
+      }
+
+      if(cancelBtn){
+        cancelBtn.addEventListener('click', () => {
+          renderSection('inicio');
+          items.forEach(i => i.classList.remove('active'));
+          const inicioBtn = document.querySelector('.nav-item[data-action="inicio"]');
+          if(inicioBtn) inicioBtn.classList.add('active');
+        });
+      }
+    }
+
+    // Si renderizamos la sección inscripciones, cargamos la lista y añadimos listeners para el formulario
+    if(action === 'inscripciones'){
+      const AUTH_BACKEND_URL_LOCAL = 'https://admin-panel-rousseau.onrender.com';
+      const listEl = document.getElementById('enrollmentsList');
+
+      const formatDate = (i) => {
+        if(i.createdAt && i.createdAt._seconds) return new Date(i.createdAt._seconds * 1000).toLocaleString('es-MX');
+        return '—';
+      };
+
+      const loadEnrollments = async () => {
+        if(!listEl) return;
+        try {
+          const res = await fetch(`${AUTH_BACKEND_URL_LOCAL}/api/inscripciones`);
+          if(!res.ok) throw new Error('Error en el servidor');
+          const data = await res.json();
+          const inscripciones = data.inscripciones || [];
+
+          if(inscripciones.length === 0){
+            listEl.innerHTML = `<p class="payments-empty">Aún no hay inscripciones registradas.</p>`;
+            return;
+          }
+
+          const rowsHTML = inscripciones.map(i => `
+            <tr>
+              <td>${i.studentName || '—'}</td>
+              <td>${i.studentCode || '—'}</td>
+              <td>${i.parentName || '—'}</td>
+              <td>${i.parentEmail || '—'}</td>
+              <td>${i.parentPhone || '—'}</td>
+              <td>${formatDate(i)}</td>
+              <td><span class="payment-status payment-status-${i.status || 'pendiente'}">${i.status || 'pendiente'}</span></td>
+            </tr>
+          `).join('');
+
+          listEl.innerHTML = `
+            <table class="payments-table">
+              <thead>
+                <tr>
+                  <th>Alumno</th>
+                  <th>Código</th>
+                  <th>Padre/Madre/Tutor</th>
+                  <th>Correo</th>
+                  <th>Teléfono</th>
+                  <th>Fecha</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>${rowsHTML}</tbody>
+            </table>
+          `;
+        } catch (err) {
+          console.error(err);
+          listEl.innerHTML = `<p class="payments-empty">No se pudieron cargar las inscripciones.</p>`;
+        }
+      };
+
+      loadEnrollments();
+
+      const form = document.getElementById('enrollmentForm');
+      const feedback = document.getElementById('enrollFeedback');
+      const cancelBtn = document.getElementById('enrollCancel');
+
+      if(form){
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          if(feedback){ feedback.textContent = ''; feedback.className = 'form-feedback'; }
+
+          const studentName = document.getElementById('enrollStudentName').value.trim();
+          const studentCode = document.getElementById('enrollStudentCode').value.trim();
+          const parentName = document.getElementById('enrollParentName').value.trim();
+          const parentEmail = document.getElementById('enrollParentEmail').value.trim();
+          const parentPhone = document.getElementById('enrollParentPhone').value.trim();
+          const parentId = document.getElementById('enrollParentId').value.trim();
+          const status = document.getElementById('enrollStatus').value;
+
+          if(!studentName || !studentCode || !parentName || !parentEmail || !parentPhone){
+            if(feedback){ feedback.textContent = 'Por favor completa todos los campos obligatorios.'; feedback.classList.add('error'); }
+            return;
+          }
+
+          const payload = { studentName, studentCode, parentName, parentEmail, parentPhone, parentId, status };
+
+          try {
+            const res = await fetch(`${AUTH_BACKEND_URL_LOCAL}/api/inscripciones`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            if(!res.ok) throw new Error('Error en el servidor');
+
+            if(feedback){ feedback.textContent = 'Inscripción guardada correctamente.'; feedback.classList.add('success'); }
+            form.reset();
+            loadEnrollments();
+          } catch (err) {
+            console.error(err);
+            if(feedback){ feedback.textContent = 'No se pudo guardar la inscripción.'; feedback.classList.add('error'); }
           }
         });
       }
