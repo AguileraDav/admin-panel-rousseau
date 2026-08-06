@@ -146,16 +146,18 @@ document.addEventListener('DOMContentLoaded', () => {
     'Tareas y participación',
     'Materiales'
   ];
-  // Bimestres: cada materia tiene una calificación (estrella) independiente por bimestre
-  const BIMESTRES = ['B1', 'B2', 'B3', 'B4', 'B5'];
-  // rating por bimestre: null (sin calificar), 'green' (destacado), 'yellow' (en proceso), 'red' (se le dificulta)
+  // Bimestres: cada materia tiene una calificación (estrella) independiente por bimestre.
+  // Esquema real en Firestore: doc.bimestres = { b1: { <materia>: 'verde'|'amarillo'|'rojo', inasistencias: number }, ..., b5: {...} }
+  const BIMESTRES = ['b1', 'b2', 'b3', 'b4', 'b5'];
   const gradeSubjects = DEFAULT_SUBJECTS.map((name, i) => ({
     id: `subj-${i}`,
     name,
     ratings: Object.fromEntries(BIMESTRES.map(b => [b, null]))
   }));
-  const RATING_CYCLE = [null, 'green', 'yellow', 'red'];
-  const RATING_LABELS = { green: 'Destacado', yellow: 'En proceso', red: 'Se le dificulta' };
+  const gradeInasistencias = Object.fromEntries(BIMESTRES.map(b => [b, 0]));
+  const RATING_CYCLE = [null, 'verde', 'amarillo', 'rojo'];
+  const RATING_LABELS = { verde: 'Destacado', amarillo: 'En proceso', rojo: 'Se le dificulta' };
+  const RATING_CLASS = { verde: 'green', amarillo: 'yellow', rojo: 'red' };
   let gradeStudents = []; // alumnos cargados desde la colección "grades"
   let selectedStudentId = null;
 
@@ -163,18 +165,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const rowsHTML = gradeSubjects.map(s => {
       const starsHTML = BIMESTRES.map(b => {
         const rating = s.ratings[b];
-        const starClass = rating ? `star-${rating}` : 'star-empty';
+        const starClass = rating ? `star-${RATING_CLASS[rating]}` : 'star-empty';
         const label = rating ? RATING_LABELS[rating] : 'Sin calificar';
-        return `<button type="button" class="star-btn ${starClass}" data-toggle-rating="${s.id}" data-bimestre="${b}" title="${b}: ${label}">★</button>`;
+        return `<button type="button" class="star-btn ${starClass}" data-toggle-rating="${s.id}" data-bimestre="${b}" title="${b.toUpperCase()}: ${label}">★</button>`;
       }).join('');
       return `
         <tr>
           <td>${s.name}</td>
           <td class="grade-star-cell">${starsHTML}</td>
-          <td><button type="button" class="cal-legend-delete" data-delete-subject="${s.id}" aria-label="Eliminar materia">✕</button></td>
         </tr>
       `;
     }).join('');
+
+    const inasistenciasHTML = BIMESTRES.map(b => `
+      <input type="number" min="0" class="grade-inasistencias-input" data-inasistencias-bimestre="${b}" value="${gradeInasistencias[b]}" ${selectedStudentId ? '' : 'disabled'} />
+    `).join('');
 
     const studentOptionsHTML = gradeStudents.map(st =>
       `<option value="${st.id}" ${st.id === selectedStudentId ? 'selected' : ''}>${st.childName || '(sin nombre)'}</option>`
@@ -192,9 +197,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <table class="grades-table">
           <thead>
-            <tr><th>Materia</th><th class="grade-star-cell">${BIMESTRES.map(b => `<span class="grade-bimestre-label">${b}</span>`).join('')}</th><th></th></tr>
+            <tr><th>Materia</th><th class="grade-star-cell">${BIMESTRES.map(b => `<span class="grade-bimestre-label">${b.toUpperCase()}</span>`).join('')}</th></tr>
           </thead>
           <tbody>${rowsHTML}</tbody>
+          <tfoot>
+            <tr>
+              <td>Inasistencias</td>
+              <td class="grade-star-cell">${inasistenciasHTML}</td>
+            </tr>
+          </tfoot>
         </table>
 
         <div class="grades-legend">
@@ -876,7 +887,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Si renderizamos la sección calificaciones, añadimos listeners para las estrellas y el formulario
     if(action === 'calificaciones'){
       const starBtns = document.querySelectorAll('[data-toggle-rating]');
-      const deleteBtns = document.querySelectorAll('[data-delete-subject]');
+      const inasistenciasInputs = document.querySelectorAll('[data-inasistencias-bimestre]');
       const studentSelect = document.getElementById('gradeStudentSelect');
       const uploadBtn = document.getElementById('uploadGradesBtn');
       const uploadFeedback = document.getElementById('gradesUploadFeedback');
@@ -893,12 +904,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
 
-      deleteBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-          const id = btn.getAttribute('data-delete-subject');
-          const idx = gradeSubjects.findIndex(s => s.id === id);
-          if(idx !== -1) gradeSubjects.splice(idx, 1);
-          renderSection('calificaciones');
+      inasistenciasInputs.forEach(input => {
+        input.addEventListener('change', () => {
+          const bimestre = input.getAttribute('data-inasistencias-bimestre');
+          gradeInasistencias[bimestre] = Math.max(0, parseInt(input.value, 10) || 0);
         });
       });
 
@@ -921,29 +930,29 @@ document.addEventListener('DOMContentLoaded', () => {
         studentSelect.addEventListener('change', () => {
           selectedStudentId = studentSelect.value || null;
 
-          // Si el alumno ya tiene materias guardadas (arreglo de objetos), las cargamos;
-          // si no, partimos de la lista de materias por defecto sin calificar.
           const student = gradeStudents.find(s => s.id === selectedStudentId);
-          const savedMaterias = student && Array.isArray(student.materias) ? student.materias : null;
+          // "materias" en el documento real es un arreglo de nombres (strings); si no existe, usamos la lista por defecto.
+          const materiaNames = student && Array.isArray(student.materias) && student.materias.length > 0
+            ? student.materias
+            : DEFAULT_SUBJECTS;
+          const bimestres = (student && student.bimestres) || {};
 
           gradeSubjects.length = 0;
-          if(savedMaterias && savedMaterias.length > 0){
-            savedMaterias.forEach((materia, i) => {
-              gradeSubjects.push({
-                id: `subj-${i}`,
-                name: materia.nombre,
-                ratings: Object.fromEntries(BIMESTRES.map(b => [b, (materia.calificaciones && materia.calificaciones[b]) || null]))
-              });
+          materiaNames.forEach((name, i) => {
+            gradeSubjects.push({
+              id: `subj-${i}`,
+              name,
+              ratings: Object.fromEntries(BIMESTRES.map(b => {
+                const raw = bimestres[b] ? bimestres[b][name] : null;
+                const normalized = raw ? raw.trim().toLowerCase() : null;
+                return [b, RATING_CYCLE.includes(normalized) ? normalized : null];
+              }))
             });
-          } else {
-            DEFAULT_SUBJECTS.forEach((name, i) => {
-              gradeSubjects.push({
-                id: `subj-${i}`,
-                name,
-                ratings: Object.fromEntries(BIMESTRES.map(b => [b, null]))
-              });
-            });
-          }
+          });
+
+          BIMESTRES.forEach(b => {
+            gradeInasistencias[b] = (bimestres[b] && Number(bimestres[b].inasistencias)) || 0;
+          });
 
           renderSection('calificaciones');
         });
@@ -956,20 +965,26 @@ document.addEventListener('DOMContentLoaded', () => {
           uploadBtn.disabled = true;
           uploadBtn.textContent = 'Subiendo...';
 
-          // Armamos el arreglo de materias: cada una con su nombre y calificación por bimestre
-          const materias = gradeSubjects.map(s => ({ nombre: s.name, calificaciones: s.ratings }));
+          // Armamos el objeto bimestres: b1..b5 -> { <materia>: color, inasistencias }
+          const bimestres = Object.fromEntries(BIMESTRES.map(b => {
+            const entry = { inasistencias: gradeInasistencias[b] };
+            gradeSubjects.forEach(s => {
+              if(s.ratings[b]) entry[s.name] = s.ratings[b];
+            });
+            return [b, entry];
+          }));
 
           try {
             const res = await fetch(`${AUTH_BACKEND_URL}/api/grades/${selectedStudentId}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ materias })
+              body: JSON.stringify({ bimestres })
             });
             const data = await res.json();
             if(!res.ok) throw new Error(data.error || 'Error al subir calificaciones');
 
             const student = gradeStudents.find(s => s.id === selectedStudentId);
-            if(student) student.materias = materias;
+            if(student) student.bimestres = bimestres;
 
             if(uploadFeedback){ uploadFeedback.textContent = 'Calificaciones subidas correctamente.'; uploadFeedback.classList.add('success'); }
           } catch (err) {

@@ -228,14 +228,14 @@ app.get('/api/grades', async (req, res) => {
 });
 
 // Endpoint para subir las calificaciones (por estrella de color) de un alumno.
-// "materias" es un arreglo de objetos: { nombre, calificaciones: { B1..B5: color|null } }
+// "bimestres" tiene la forma { b1: { <materia>: 'verde'|'amarillo'|'rojo', inasistencias: number }, ..., b5: {...} }
 app.put('/api/grades/:id', async (req, res) => {
   if (!db) return res.status(500).json({ error: 'Base de datos no inicializada' });
 
   const { id } = req.params;
-  const { materias } = req.body || {};
-  if (!Array.isArray(materias)) {
-    return res.status(400).json({ error: 'Faltan las materias' });
+  const { bimestres } = req.body || {};
+  if (!bimestres || typeof bimestres !== 'object') {
+    return res.status(400).json({ error: 'Faltan los bimestres' });
   }
 
   try {
@@ -243,7 +243,7 @@ app.put('/api/grades/:id', async (req, res) => {
     const doc = await docRef.get();
     if (!doc.exists) return res.status(404).json({ error: 'Alumno no encontrado' });
 
-    await docRef.update({ materias });
+    await docRef.update({ bimestres });
     const updated = await docRef.get();
     res.json({ id, data: updated.data() });
   } catch (err) {
