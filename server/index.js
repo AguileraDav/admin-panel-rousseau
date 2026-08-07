@@ -1,7 +1,9 @@
 const express = require('express');
 const cors = require('cors');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const QRCode = require('qrcode');
 const { admin, db } = require('./firebase');
 const paymentsRouter = require('./routes/payments');
 const { sendEnrollmentQrEmail } = require('./mailer');
@@ -108,26 +110,22 @@ app.get('/api/events', async (req, res) => {
 });
 
 // Endpoint para registrar una inscripción.
-// "qrImage" es opcional: un data URL (data:image/png;base64,....) con el código QR de acceso.
-// Si se envía, se guarda en la inscripción y se manda por correo al padre/madre/tutor.
+// Al crear la inscripción se genera automáticamente un código de acceso único
+// y su imagen QR correspondiente; ambos se guardan en el documento y el QR se
+// envía por correo al padre/madre/tutor para que pueda acceder a la app escaneándolo.
 app.post('/api/inscripciones', async (req, res) => {
   if (!db) return res.status(500).json({ error: 'Base de datos no inicializada' });
 
-  const { parentName, parentEmail, parentPhone, parentId, studentName, studentCode, status, qrImage } = req.body || {};
+  const { parentName, parentEmail, parentPhone, parentId, studentName, studentCode, status } = req.body || {};
   if (!parentName || !parentEmail || !parentPhone || !studentName || !studentCode) {
     return res.status(400).json({ error: 'Faltan datos obligatorios de la inscripción' });
   }
 
-  let qrMimeType = null;
-  let qrBuffer = null;
-  if (qrImage) {
-    const match = /^data:(image\/[a-zA-Z+]+);base64,(.+)$/.exec(qrImage);
-    if (!match) return res.status(400).json({ error: 'El QR debe ser una imagen válida' });
-    qrMimeType = match[1];
-    qrBuffer = Buffer.from(match[2], 'base64');
-  }
+  const accessCode = crypto.randomBytes(20).toString('hex');
 
   try {
+    const qrImage = await QRCode.toDataURL(accessCode, { width: 300, margin: 1 });
+
     const docRef = await db.collection(ENROLLMENTS_COLLECTION).add({
       parentName,
       parentEmail,
@@ -136,7 +134,8 @@ app.post('/api/inscripciones', async (req, res) => {
       studentName,
       studentCode,
       status: status || 'approved',
-      qrImage: qrImage || '',
+      accessCode,
+      qrImage,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       reviewedAt: admin.firestore.FieldValue.serverTimestamp()
     });
@@ -145,20 +144,59 @@ app.post('/api/inscripciones', async (req, res) => {
 
     let emailSent = false;
     let emailError = null;
-    if (qrBuffer) {
-      try {
-        await sendEnrollmentQrEmail({ to: parentEmail, studentName, parentName, qrBuffer, qrMimeType });
-        emailSent = true;
-      } catch (err) {
-        console.error('Error enviando correo con el QR:', err);
-        emailError = err.message;
-      }
+    try {
+      const match = /^data:(image\/[a-zA-Z+]+);base64,(.+)$/.exec(qrImage);
+      const qrBuffer = Buffer.from(match[2], 'base64');
+      await sendEnrollmentQrEmail({ to: parentEmail, studentName, parentName, qrBuffer, qrMimeType: match[1] });
+      emailSent = true;
+    } catch (err) {
+      console.error('Error enviando correo con el QR:', err);
+      emailError = err.message;
     }
 
     res.status(201).json({ id: docRef.id, data: doc.data(), emailSent, emailError });
   } catch (err) {
     console.error('Error guardando inscripción:', err);
     res.status(500).json({ error: 'Error al guardar la inscripción' });
+  }
+});
+
+// Endpoint para que la app de padres inicie sesión escaneando el código QR de su inscripción.
+// Recibe el "code" (accessCode) leído del QR y, si corresponde a una inscripción aprobada,
+// devuelve un Firebase custom token para autenticar al padre/madre/tutor en la app.
+app.post('/api/qr-login', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Base de datos no inicializada' });
+
+  const { code } = req.body || {};
+  if (!code) return res.status(400).json({ error: 'Falta el código del QR' });
+
+  try {
+    const snapshot = await db.collection(ENROLLMENTS_COLLECTION)
+      .where('accessCode', '==', code)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) return res.status(404).json({ error: 'Código QR no válido' });
+
+    const enrollment = snapshot.docs[0].data();
+    if (enrollment.status !== 'approved') {
+      return res.status(403).json({ error: 'La inscripción todavía no está aprobada' });
+    }
+    if (!enrollment.parentId) {
+      return res.status(400).json({ error: 'Esta inscripción no tiene una cuenta de padre vinculada' });
+    }
+
+    const customToken = await admin.auth().createCustomToken(enrollment.parentId);
+    res.json({
+      token: customToken,
+      parentId: enrollment.parentId,
+      parentEmail: enrollment.parentEmail,
+      studentName: enrollment.studentName,
+      studentCode: enrollment.studentCode
+    });
+  } catch (err) {
+    console.error('Error en login por QR:', err);
+    res.status(500).json({ error: 'Error al iniciar sesión con el QR' });
   }
 });
 

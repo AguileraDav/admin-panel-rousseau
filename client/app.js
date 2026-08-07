@@ -605,11 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   <option value="rejected">Rechazada</option>
                 </select>
               </div>
-              <div class="form-row">
-                <label for="enrollQrImage">Código QR de acceso (imagen)</label>
-                <input type="file" id="enrollQrImage" name="qrImage" accept="image/*" />
-                <small>Se enviará por correo al padre/madre/tutor para que pueda acceder a la aplicación.</small>
-              </div>
+              <p class="form-hint">Al guardar se generará automáticamente un código QR de acceso y se enviará por correo al padre/madre/tutor.</p>
               <div class="form-actions">
                 <button type="submit" class="btn-primary">Guardar inscripción</button>
                 <button type="button" id="enrollCancel" class="btn-secondary">Cancelar</button>
@@ -823,6 +819,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <td>${i.parentPhone || '—'}</td>
               <td>${formatDate(i)}</td>
               <td><span class="payment-status payment-status-${i.status || 'pendiente'}">${i.status || 'pendiente'}</span></td>
+              <td>${i.qrImage ? `<button type="button" class="btn-secondary btn-view-qr" data-qr-id="${i.id}">Ver QR</button>` : '—'}</td>
             </tr>
           `).join('');
 
@@ -837,11 +834,39 @@ document.addEventListener('DOMContentLoaded', () => {
                   <th>Teléfono</th>
                   <th>Fecha</th>
                   <th>Estado</th>
+                  <th>QR de acceso</th>
                 </tr>
               </thead>
               <tbody>${rowsHTML}</tbody>
             </table>
+            <div id="qrModal" class="qr-modal hidden">
+              <div class="qr-modal-content">
+                <button type="button" id="qrModalClose" class="qr-modal-close" aria-label="Cerrar">&times;</button>
+                <img id="qrModalImg" alt="Código QR de acceso" />
+                <p id="qrModalCaption"></p>
+              </div>
+            </div>
           `;
+
+          const qrById = Object.fromEntries(inscripciones.map(i => [i.id, i]));
+          const modal = document.getElementById('qrModal');
+          const modalImg = document.getElementById('qrModalImg');
+          const modalCaption = document.getElementById('qrModalCaption');
+          const modalClose = document.getElementById('qrModalClose');
+
+          const openModal = (enrollment) => {
+            if(!modal || !enrollment) return;
+            modalImg.src = enrollment.qrImage;
+            modalCaption.textContent = `${enrollment.studentName || ''} — ${enrollment.parentEmail || ''}`;
+            modal.classList.remove('hidden');
+          };
+          const closeModal = () => modal && modal.classList.add('hidden');
+
+          listEl.querySelectorAll('.btn-view-qr').forEach(btn => {
+            btn.addEventListener('click', () => openModal(qrById[btn.dataset.qrId]));
+          });
+          if(modalClose) modalClose.addEventListener('click', closeModal);
+          if(modal) modal.addEventListener('click', (e) => { if(e.target === modal) closeModal(); });
         } catch (err) {
           console.error(err);
           listEl.innerHTML = `<p class="payments-empty">No se pudieron cargar las inscripciones.</p>`;
@@ -866,27 +891,17 @@ document.addEventListener('DOMContentLoaded', () => {
           const parentPhone = document.getElementById('enrollParentPhone').value.trim();
           const parentId = document.getElementById('enrollParentId').value.trim();
           const status = document.getElementById('enrollStatus').value;
-          const qrFile = document.getElementById('enrollQrImage').files[0];
 
           if(!studentName || !studentCode || !parentName || !parentEmail || !parentPhone){
             if(feedback){ feedback.textContent = 'Por favor completa todos los campos obligatorios.'; feedback.classList.add('error'); }
             return;
           }
 
-          const readFileAsDataURL = (file) => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-
+          const payload = { studentName, studentCode, parentName, parentEmail, parentPhone, parentId, status };
           const submitBtn = form.querySelector('button[type="submit"]');
           if(submitBtn) submitBtn.disabled = true;
 
           try {
-            const qrImage = qrFile ? await readFileAsDataURL(qrFile) : '';
-            const payload = { studentName, studentCode, parentName, parentEmail, parentPhone, parentId, status, qrImage };
-
             const res = await fetch(`${AUTH_BACKEND_URL_LOCAL}/api/inscripciones`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -897,13 +912,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
 
             if(feedback){
-              if(qrImage && data.emailSent){
-                feedback.textContent = 'Inscripción guardada y correo con el QR enviado al padre/madre/tutor.';
-              } else if(qrImage && !data.emailSent){
-                feedback.textContent = 'Inscripción guardada, pero no se pudo enviar el correo con el QR.';
-              } else {
-                feedback.textContent = 'Inscripción guardada correctamente.';
-              }
+              feedback.textContent = data.emailSent
+                ? 'Inscripción guardada. Se generó el código QR de acceso y se envió por correo al padre/madre/tutor.'
+                : 'Inscripción guardada y QR generado, pero no se pudo enviar el correo.';
               feedback.classList.add('success');
             }
             form.reset();
