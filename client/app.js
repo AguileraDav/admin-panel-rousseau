@@ -67,6 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         localStorage.setItem('authToken', data.token);
         showDashboard({ role: data.role, email: data.email });
+        applyRoleRestrictions(data.role);
         loginForm.reset();
       } catch (err) {
         loginFeedback.textContent = err.message || 'No se pudo iniciar sesión.';
@@ -91,16 +92,37 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  const initialSession = getSession();
-  if (initialSession) {
-    showDashboard(initialSession);
-  } else {
-    showLogin();
-  }
-
   const sidebarNav = document.querySelector('.sidebar-nav');
   const items = sidebarNav.querySelectorAll('.nav-item');
   const adminContent = document.getElementById('adminContent');
+
+  // Roles con acceso restringido: solo pueden ver estas secciones (además de "inicio")
+  const ROLE_ALLOWED_ACTIONS = { profesor: ['inicio', 'calificaciones', 'asistencias'] };
+  let currentRole = null;
+
+  function applyRoleRestrictions(role) {
+    currentRole = role;
+    const allowed = ROLE_ALLOWED_ACTIONS[role];
+    items.forEach(item => {
+      const action = item.getAttribute('data-action');
+      const isAllowed = !allowed || allowed.includes(action);
+      item.style.display = isAllowed ? '' : 'none';
+    });
+    adminContent.querySelectorAll('.quick-access [data-action]').forEach(card => {
+      const action = card.getAttribute('data-action');
+      // La tarjeta de "Asistencias" en accesos rápidos es exclusiva del profesor
+      const isAllowed = action === 'asistencias' ? role === 'profesor' : (!allowed || allowed.includes(action));
+      card.style.display = isAllowed ? '' : 'none';
+    });
+  }
+
+  const initialSession = getSession();
+  if (initialSession) {
+    showDashboard(initialSession);
+    applyRoleRestrictions(initialSession.role);
+  } else {
+    showLogin();
+  }
 
   const sidebar = document.getElementById('sidebar');
   const mobileMenuBtn = document.getElementById('mobileMenuBtn');
@@ -177,10 +199,6 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }).join('');
 
-    const inasistenciasHTML = BIMESTRES.map(b => `
-      <input type="number" min="0" class="grade-inasistencias-input" data-inasistencias-bimestre="${b}" value="${gradeInasistencias[b]}" ${selectedStudentId ? '' : 'disabled'} />
-    `).join('');
-
     const studentOptionsHTML = gradeStudents.map(st =>
       `<option value="${st.id}" ${st.id === selectedStudentId ? 'selected' : ''}>${st.childName || '(sin nombre)'}</option>`
     ).join('');
@@ -200,12 +218,6 @@ document.addEventListener('DOMContentLoaded', () => {
             <tr><th>Materia</th><th class="grade-star-cell">${BIMESTRES.map(b => `<span class="grade-bimestre-label">${b.toUpperCase()}</span>`).join('')}</th></tr>
           </thead>
           <tbody>${rowsHTML}</tbody>
-          <tfoot>
-            <tr>
-              <td>Inasistencias</td>
-              <td class="grade-star-cell">${inasistenciasHTML}</td>
-            </tr>
-          </tfoot>
         </table>
 
         <div class="grades-legend">
@@ -397,6 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Si la acción es "inicio", restauramos el html completo del dashboard original
     if(action === 'inicio') {
       adminContent.innerHTML = inicioHTML;
+      applyRoleRestrictions(currentRole);
       return;
     }
 
@@ -887,7 +900,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Si renderizamos la sección calificaciones, añadimos listeners para las estrellas y el formulario
     if(action === 'calificaciones'){
       const starBtns = document.querySelectorAll('[data-toggle-rating]');
-      const inasistenciasInputs = document.querySelectorAll('[data-inasistencias-bimestre]');
       const studentSelect = document.getElementById('gradeStudentSelect');
       const uploadBtn = document.getElementById('uploadGradesBtn');
       const uploadFeedback = document.getElementById('gradesUploadFeedback');
@@ -901,13 +913,6 @@ document.addEventListener('DOMContentLoaded', () => {
           const currentIndex = RATING_CYCLE.indexOf(subject.ratings[bimestre]);
           subject.ratings[bimestre] = RATING_CYCLE[(currentIndex + 1) % RATING_CYCLE.length];
           renderSection('calificaciones');
-        });
-      });
-
-      inasistenciasInputs.forEach(input => {
-        input.addEventListener('change', () => {
-          const bimestre = input.getAttribute('data-inasistencias-bimestre');
-          gradeInasistencias[bimestre] = Math.max(0, parseInt(input.value, 10) || 0);
         });
       });
 
