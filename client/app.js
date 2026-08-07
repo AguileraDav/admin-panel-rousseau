@@ -154,6 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
   const foodMenus = {}; // { lunes: { meal, dessert, drink }, ... }
   let editingDay = null; // día actualmente en edición, o null
+  let foodFormFeedback = null; // { text, type } mensaje persistente tras guardar/actualizar un día
 
   // Estado de calificaciones por materia (calificación mediante estrella de color)
   const DEFAULT_SUBJECTS = [
@@ -539,10 +540,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <textarea id="foodDrink" name="drink" rows="2" placeholder="Ej. Agua de horchata">${existingMenu ? existingMenu.drink : ''}</textarea>
               </div>
               <div class="form-actions">
-                <button type="submit" class="btn-primary">${editingDay ? 'Actualizar menú del día' : 'Guardar menú del día'}</button>
+                <button type="submit" id="foodSubmitBtn" class="btn-primary">${editingDay ? 'Actualizar menú del día' : 'Guardar menú del día'}</button>
                 <button type="button" id="foodCancel" class="btn-secondary">${editingDay ? 'Cancelar edición' : 'Cancelar'}</button>
               </div>
-              <div id="foodFeedback" class="form-feedback" aria-live="polite"></div>
+              <div id="foodFeedback" class="form-feedback ${foodFormFeedback ? foodFormFeedback.type : ''}" aria-live="polite">${foodFormFeedback ? foodFormFeedback.text : ''}</div>
             </form>
           `;
 
@@ -1181,14 +1182,21 @@ document.addEventListener('DOMContentLoaded', () => {
       editBtns.forEach(btn => {
         btn.addEventListener('click', () => {
           editingDay = btn.getAttribute('data-edit-day');
+          foodFormFeedback = null;
           renderSection('alimentos');
         });
       });
 
       if(form){
+        const submitBtn = document.getElementById('foodSubmitBtn');
+        const isUpdate = !!editingDay;
+        const idleLabel = isUpdate ? 'Actualizar menú del día' : 'Guardar menú del día';
+        const loadingLabel = isUpdate ? 'Actualizando...' : 'Guardando...';
+
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
           if(feedback){ feedback.textContent = ''; feedback.className = 'form-feedback'; }
+          foodFormFeedback = null;
 
           const day = document.getElementById('foodDay').value;
           const meal = document.getElementById('foodMeal').value.trim();
@@ -1200,31 +1208,22 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
           }
 
-          const payload = { day, meal, dessert, drink };
+          if(submitBtn){ submitBtn.disabled = true; submitBtn.textContent = loadingLabel; }
 
-          try {
-            // Nota: endpoint temporal '/api/food' — en el siguiente paso se conectará a la base de datos
-            const BACKEND_URL = 'https://admin-panel-rousseau.onrender.com';
-            const res = await fetch(`${BACKEND_URL}/api/food`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-
-            if(!res.ok) throw new Error('Error en el servidor');
-          } catch (err) {
-            console.error(err);
-          }
-
-          // Guardamos el menú del día localmente y salimos del modo edición
+          // Guardamos el menú del día en el estado local del panel. La persistencia
+          // real en la base de datos ocurre al presionar "Enviar menú" (POST /api/menu).
           foodMenus[day] = { meal, dessert, drink };
           editingDay = null;
+          foodFormFeedback = { text: isUpdate ? 'Menú del día actualizado correctamente.' : 'Menú del día guardado correctamente.', type: 'success' };
+
+          if(submitBtn){ submitBtn.disabled = false; submitBtn.textContent = idleLabel; }
           renderSection('alimentos');
         });
       }
 
       if(cancelBtn){
         cancelBtn.addEventListener('click', () => {
+          foodFormFeedback = null;
           if(editingDay){
             // Cancelar edición: volvemos al flujo normal sin perder lo ya guardado
             editingDay = null;
@@ -1242,9 +1241,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const sendFeedback = document.getElementById('foodSendFeedback');
 
       if(sendMenuBtn){
+        const sendIdleLabel = 'Enviar menú';
         sendMenuBtn.addEventListener('click', async () => {
           if(sendFeedback){ sendFeedback.textContent = ''; sendFeedback.className = 'form-feedback'; }
           sendMenuBtn.disabled = true;
+          sendMenuBtn.textContent = 'Enviando...';
 
           try {
             const BACKEND_URL = 'https://admin-panel-rousseau.onrender.com';
@@ -1262,6 +1263,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(sendFeedback){ sendFeedback.textContent = 'No se pudo enviar el menú a la base de datos.'; sendFeedback.classList.add('error'); }
           } finally {
             sendMenuBtn.disabled = false;
+            sendMenuBtn.textContent = sendIdleLabel;
           }
         });
       }
