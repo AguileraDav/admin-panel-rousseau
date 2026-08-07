@@ -57,3 +57,16 @@ curl http://localhost:3000/api/events
 
 - No subas `serviceAccountKey.json` a repositorios públicos.
 - Restringe el acceso a la cuenta de servicio en IAM según el principio de privilegio mínimo.
+
+8) Envío de correo con el QR de inscripción
+
+El endpoint `POST /api/inscripciones` acepta un campo opcional `qrImage` (data URL de una imagen). Si se envía, además de guardarse en la inscripción, se manda por correo al `parentEmail` con el QR adjunto para que el padre/madre/tutor pueda acceder a la app.
+
+Configura estas variables de entorno (por ejemplo en `server/.env`, ya está en `.gitignore`):
+
+```
+EMAIL_USER=tu_correo@gmail.com
+EMAIL_PASS=contraseña_de_aplicacion_de_gmail
+```
+
+`EMAIL_PASS` debe ser una "contraseña de aplicación" de Gmail (no la contraseña normal de la cuenta); se genera en la configuración de seguridad de la cuenta de Google con la verificación en dos pasos activada.

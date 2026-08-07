@@ -4,13 +4,15 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { admin, db } = require('./firebase');
 const paymentsRouter = require('./routes/payments');
+const { sendEnrollmentQrEmail } = require('./mailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
 app.use(cors());
-app.use(express.json());
+// Límite ampliado para admitir la imagen del QR en formato base64 dentro del body
+app.use(express.json({ limit: '10mb' }));
 
 // Nombre de la colección donde se guardan los eventos del calendario
 const EVENTS_COLLECTION = 'events';
@@ -105,13 +107,24 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
-// Endpoint para registrar una inscripción
+// Endpoint para registrar una inscripción.
+// "qrImage" es opcional: un data URL (data:image/png;base64,....) con el código QR de acceso.
+// Si se envía, se guarda en la inscripción y se manda por correo al padre/madre/tutor.
 app.post('/api/inscripciones', async (req, res) => {
   if (!db) return res.status(500).json({ error: 'Base de datos no inicializada' });
 
-  const { parentName, parentEmail, parentPhone, parentId, studentName, studentCode, status } = req.body || {};
+  const { parentName, parentEmail, parentPhone, parentId, studentName, studentCode, status, qrImage } = req.body || {};
   if (!parentName || !parentEmail || !parentPhone || !studentName || !studentCode) {
     return res.status(400).json({ error: 'Faltan datos obligatorios de la inscripción' });
+  }
+
+  let qrMimeType = null;
+  let qrBuffer = null;
+  if (qrImage) {
+    const match = /^data:(image\/[a-zA-Z+]+);base64,(.+)$/.exec(qrImage);
+    if (!match) return res.status(400).json({ error: 'El QR debe ser una imagen válida' });
+    qrMimeType = match[1];
+    qrBuffer = Buffer.from(match[2], 'base64');
   }
 
   try {
@@ -123,12 +136,26 @@ app.post('/api/inscripciones', async (req, res) => {
       studentName,
       studentCode,
       status: status || 'approved',
+      qrImage: qrImage || '',
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       reviewedAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
     const doc = await docRef.get();
-    res.status(201).json({ id: docRef.id, data: doc.data() });
+
+    let emailSent = false;
+    let emailError = null;
+    if (qrBuffer) {
+      try {
+        await sendEnrollmentQrEmail({ to: parentEmail, studentName, parentName, qrBuffer, qrMimeType });
+        emailSent = true;
+      } catch (err) {
+        console.error('Error enviando correo con el QR:', err);
+        emailError = err.message;
+      }
+    }
+
+    res.status(201).json({ id: docRef.id, data: doc.data(), emailSent, emailError });
   } catch (err) {
     console.error('Error guardando inscripción:', err);
     res.status(500).json({ error: 'Error al guardar la inscripción' });

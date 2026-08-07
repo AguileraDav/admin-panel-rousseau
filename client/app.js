@@ -605,6 +605,11 @@ document.addEventListener('DOMContentLoaded', () => {
                   <option value="rejected">Rechazada</option>
                 </select>
               </div>
+              <div class="form-row">
+                <label for="enrollQrImage">Código QR de acceso (imagen)</label>
+                <input type="file" id="enrollQrImage" name="qrImage" accept="image/*" />
+                <small>Se enviará por correo al padre/madre/tutor para que pueda acceder a la aplicación.</small>
+              </div>
               <div class="form-actions">
                 <button type="submit" class="btn-primary">Guardar inscripción</button>
                 <button type="button" id="enrollCancel" class="btn-secondary">Cancelar</button>
@@ -861,15 +866,27 @@ document.addEventListener('DOMContentLoaded', () => {
           const parentPhone = document.getElementById('enrollParentPhone').value.trim();
           const parentId = document.getElementById('enrollParentId').value.trim();
           const status = document.getElementById('enrollStatus').value;
+          const qrFile = document.getElementById('enrollQrImage').files[0];
 
           if(!studentName || !studentCode || !parentName || !parentEmail || !parentPhone){
             if(feedback){ feedback.textContent = 'Por favor completa todos los campos obligatorios.'; feedback.classList.add('error'); }
             return;
           }
 
-          const payload = { studentName, studentCode, parentName, parentEmail, parentPhone, parentId, status };
+          const readFileAsDataURL = (file) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
+          const submitBtn = form.querySelector('button[type="submit"]');
+          if(submitBtn) submitBtn.disabled = true;
 
           try {
+            const qrImage = qrFile ? await readFileAsDataURL(qrFile) : '';
+            const payload = { studentName, studentCode, parentName, parentEmail, parentPhone, parentId, status, qrImage };
+
             const res = await fetch(`${AUTH_BACKEND_URL_LOCAL}/api/inscripciones`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -877,13 +894,25 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if(!res.ok) throw new Error('Error en el servidor');
+            const data = await res.json();
 
-            if(feedback){ feedback.textContent = 'Inscripción guardada correctamente.'; feedback.classList.add('success'); }
+            if(feedback){
+              if(qrImage && data.emailSent){
+                feedback.textContent = 'Inscripción guardada y correo con el QR enviado al padre/madre/tutor.';
+              } else if(qrImage && !data.emailSent){
+                feedback.textContent = 'Inscripción guardada, pero no se pudo enviar el correo con el QR.';
+              } else {
+                feedback.textContent = 'Inscripción guardada correctamente.';
+              }
+              feedback.classList.add('success');
+            }
             form.reset();
             loadEnrollments();
           } catch (err) {
             console.error(err);
             if(feedback){ feedback.textContent = 'No se pudo guardar la inscripción.'; feedback.classList.add('error'); }
+          } finally {
+            if(submitBtn) submitBtn.disabled = false;
           }
         });
       }
